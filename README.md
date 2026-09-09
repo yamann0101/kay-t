@@ -1,77 +1,58 @@
 # S-360 · Özel Güvenlik Yönetim Sistemi
 
-PWA saha uygulaması + yönetici paneli. Kullanıcılar ve kayıtlar **PostgreSQL**’de tutulur.
+PWA saha uygulaması + yönetici paneli.
 
-## Senin yapacağın tek şey
+## Veri nerede?
 
-1. Bu repoyu sunucuya / Railway / Render’a bağla  
-2. Ortam değişkenine **PostgreSQL** adresini yaz:
+**Tüm kayıtlar yalnızca PostgreSQL’de** tutulur (ziyaretçi, anahtar, kullanıcı, log…).
 
-```env
-DATABASE_URL=postgresql://KULLANICI:SIFRE@HOST:5432/VERITABANI
-```
+- Telefonda / tarayıcıda kayıt **saklanmaz**
+- Yerel dosya veritabanı (PGlite) **yok**
+- Güncelleme / redeploy seed’i tekrarlamaz → **veriler silinmez**
+- Herkes aynı sunucu + aynı `DATABASE_URL` üzerinden kayıtları görür
 
-3. Başlat (`npm start` veya platformun Start komutu)
+## Senin yapacağın
 
-Gerisini uygulama yapar:
-- **İlk açılış:** tablolar + yönetici hesabı otomatik kurulur (bir kez)
-- **Sonraki açılış / güncelleme:** yeniden kurulum yok; sadece şema güncellenir, veriler korunur
+1. Repoyu Railway / Render vb. bağla  
+2. Postgres ekle → `DATABASE_URL` otomatik gelsin  
+3. Start: `npm start`
 
 | Hesap | Kullanıcı | Şifre |
 |---|---|---|
 | Yönetici | `admin` | `Admin123!` |
 | Görevli | `erhan` | `123456` |
 
-İlk girişten sonra şifreleri değiştirmen önerilir.
+İlk girişten sonra şifreleri değiştir.
 
 ---
 
-## Railway / Render / benzeri
-
-| Ayar | Değer |
-|---|---|
-| Build | `npm install` |
-| Start | `npm start` |
-| Ortam | `DATABASE_URL` → Postgres eklentisinden otomatik gelir |
-| Node | 20+ |
-
-İsteğe bağlı:
+## Ortam
 
 ```env
+DATABASE_URL=postgresql://KULLANICI:SIFRE@HOST:5432/VERITABANI
 PORT=3600
-ADMIN_USER=admin
-ADMIN_PASS=Admin123!
 NODE_ENV=production
 ```
 
-`JWT` / VAPID anahtarları yoksa uygulama kendi üretir ve `.data/secrets.json` içinde tutar (kalıcı disk yoksa her redeploy yeni anahtar üretebilir; kalıcı volume veya env ile sabitleyin).
+`DATABASE_URL` yoksa veya Postgres yanıt vermezse uygulama **açılmaz** (yerel yedek yok).
 
 ---
 
-## Lokal (isteğe bağlı)
+## Güncelleme
+
+| Durum | Ne olur |
+|---|---|
+| İlk start | Tablolar + admin (bir kez) |
+| Redeploy / git pull | Şema güncellenir, kayıtlar kalır |
+| Elle | `npm run setup` |
+
+---
+
+## Lokal geliştirme
+
+Postgres şart (ör. `docker compose up -d`), sonra:
 
 ```bash
 npm install
 npm start
 ```
-
-`DATABASE_URL` yoksa yerel PGlite açılır. Docker ile Postgres:
-
-```bash
-docker compose up -d
-# .env içinde DATABASE_URL hazırsa npm start Postgres’e bağlanır
-```
-
-Tarayıcı: http://localhost:3600
-
----
-
-## Güncelleme mantığı
-
-| Durum | Ne olur |
-|---|---|
-| İlk `npm start` | Kurulum + seed (boş DB ise) |
-| `git pull` / redeploy | Şema güncellenir, **seed tekrarlanmaz**, veriler kalır |
-| Elle kontrol | `npm run setup` |
-
-Şema sürümü `settings.schema_version` ile tutulur.

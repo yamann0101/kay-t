@@ -39,9 +39,7 @@ const secrets = loadOrCreateSecrets();
 
 export const config = {
   port: Number(process.env.PORT || 3600),
-  databaseUrl:
-    process.env.DATABASE_URL ||
-    "postgresql://s360:s360local@127.0.0.1:5432/s360",
+  databaseUrl: process.env.DATABASE_URL || "",
   jwtSecret: process.env.JWT_SECRET || secrets.jwtSecret,
   vapidPublic: process.env.VAPID_PUBLIC_KEY || secrets.vapidPublic,
   vapidPrivate: process.env.VAPID_PRIVATE_KEY || secrets.vapidPrivate,

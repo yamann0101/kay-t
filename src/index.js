@@ -4,7 +4,7 @@ import helmet from "helmet";
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import { config } from "./config.js";
-import { connectDatabase, waitForDb } from "./db/pool.js";
+import { connectDatabase, waitForDb, getDbKind } from "./db/pool.js";
 import { bootstrapDatabase } from "./db/bootstrap.js";
 import { authRequired } from "./middleware/auth.js";
 import authRoutes from "./routes/auth.js";
@@ -40,7 +40,13 @@ app.use(
 );
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, name: "S-360", version: "1.0.0" });
+  res.json({
+    ok: true,
+    name: "S-360",
+    version: "1.0.0",
+    database: getDbKind() || "disconnected",
+    storage: "postgresql",
+  });
 });
 
 app.use("/api/auth", authRoutes);
@@ -74,6 +80,7 @@ async function start() {
     } else {
       console.log(`  Veritabanı hazır (şema v${result.schemaVersion})`);
     }
+    console.log("  Depolama   →  PostgreSQL (kayıtlar kalıcı, paylaşımlı)");
   } catch (err) {
     console.error("\n  Veritabanı hazırlanamadı.\n");
     console.error(" ", err.message || err);

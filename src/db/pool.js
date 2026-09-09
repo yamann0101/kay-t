@@ -1,19 +1,23 @@
-import path from "node:path";
 import pg from "pg";
-import { PGlite } from "@electric-sql/pglite";
 
 let impl = null;
+
+function pgSsl(url) {
+  if (!url) return false;
+  if (url.includes("localhost") || url.includes("127.0.0.1")) return false;
+  if (/[?&]sslmode=disable/i.test(url)) return false;
+  return { rejectUnauthorized: false };
+}
 
 async function tryExternalPostgres(url) {
   const client = new pg.Client({
     connectionString: url,
-    connectionTimeoutMillis: 4000,
-    ssl: url.includes("localhost") || url.includes("127.0.0.1")
-      ? false
-      : { rejectUnauthorized: false },
+    connectionTimeoutMillis: 5000,
+    ssl: pgSsl(url),
   });
   try {
     await client.connect();
+    await client.query("SELECT 1");
     await client.end();
     return true;
   } catch {
@@ -26,71 +30,51 @@ async function tryExternalPostgres(url) {
   }
 }
 
+async function waitForExternalPostgres(url, attempts = 30) {
+  for (let i = 0; i < attempts; i++) {
+    if (await tryExternalPostgres(url)) return true;
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+/**
+ * Tüm kayıtlar yalnızca PostgreSQL’de tutulur.
+ * Yerel PGlite yedeği yoktur — herkes aynı uzak DB’ye bağlanır.
+ */
 export async function connectDatabase() {
   const url = process.env.DATABASE_URL?.trim();
-  const forcePg =
-    process.env.NODE_ENV === "production" ||
-    process.env.REQUIRE_POSTGRES === "1" ||
-    process.env.REQUIRE_POSTGRES === "true";
-
-  if (url) {
-    // Bulutta / ilk bağlantıda Postgres hazır olmayabilir — kısa süre dene
-    const ready = await waitForExternalPostgres(url, forcePg ? 30 : 3);
-    if (ready) {
-      const pool = new pg.Pool({
-        connectionString: url,
-        max: 10,
-        ssl:
-          url.includes("localhost") || url.includes("127.0.0.1")
-            ? false
-            : { rejectUnauthorized: false },
-      });
-      impl = {
-        kind: "postgres",
-        query: (text, params) => pool.query(text, params),
-        exec: (text) => pool.query(text),
-      };
-      console.log("  PostgreSQL bağlandı.");
-      return impl.kind;
-    }
-    if (forcePg) {
-      throw new Error(
-        "PostgreSQL bağlantısı kurulamadı. DATABASE_URL değerini kontrol edin."
-      );
-    }
-    console.log("  DATABASE_URL yanıt vermedi, yerel yedek açılıyor…");
-  } else if (forcePg) {
+  if (!url) {
     throw new Error(
-      "Production için DATABASE_URL zorunlu. PostgreSQL bağlantı adresini ortam değişkenine yazın."
+      "DATABASE_URL yok. PostgreSQL bağlantı adresini ortam değişkenine yazın. Kayıtlar yerel tutulmaz."
     );
   }
 
-  const dataDir = path.resolve(process.cwd(), ".data", "s360-pglite");
-  const db = new PGlite(dataDir);
-  await db.waitReady;
+  const ready = await waitForExternalPostgres(url, 45);
+  if (!ready) {
+    throw new Error(
+      "PostgreSQL’e bağlanılamadı. DATABASE_URL / veri tabanı servisini kontrol edin. Yerel yedek kullanılmaz."
+    );
+  }
+
+  const pool = new pg.Pool({
+    connectionString: url,
+    max: 15,
+    ssl: pgSsl(url),
+  });
+
   impl = {
-    kind: "pglite",
-    query: async (text, params) => {
-      const res = await db.query(text, params);
-      return {
-        rows: res.rows || [],
-        rowCount: res.affectedRows ?? res.rows?.length ?? 0,
-      };
-    },
-    exec: (text) => db.exec(text),
+    kind: "postgres",
+    query: (text, params) => pool.query(text, params),
+    exec: (text) => pool.query(text),
   };
-  console.log("  Yerel veritabanı hazır (PGlite).");
+
+  console.log("  PostgreSQL bağlandı — tüm kayıtlar uzak veritabanında.");
   return impl.kind;
 }
 
-async function waitForExternalPostgres(url, attempts = 3) {
-  for (let i = 0; i < attempts; i++) {
-    if (await tryExternalPostgres(url)) return true;
-    if (i < attempts - 1) {
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-  return false;
+export function getDbKind() {
+  return impl?.kind || null;
 }
 
 export async function query(text, params) {
