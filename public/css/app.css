@@ -1853,7 +1853,13 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 .sheet-kv span { color: #999; }
-.sheet-form { display: grid; gap: 8px; }
+.sheet-form { display: grid; gap: 8px; overflow: visible; }
+.sheet-form .reg-field { overflow: visible; }
+.sheet-form input[type="datetime-local"],
+.sheet-form input[type="date"],
+.sheet-form input[type="time"] {
+  color-scheme: dark;
+}
 .sheet-form label { font-size: 11px; color: #aaa; }
 .sheet-form input, .sheet-form textarea, .sheet-form select {
   width: 100%;
