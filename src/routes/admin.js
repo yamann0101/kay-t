@@ -431,7 +431,12 @@ router.get("/visitors", async (req, res) => {
 
 router.get("/visitors/export", async (req, res) => {
   const fields = await getVisitorFields();
-  const { rows } = await query(`SELECT * FROM visitors ORDER BY created_at DESC`);
+  const { rows } = await query(
+    `SELECT v.*, u.full_name AS created_by_name
+     FROM visitors v
+     LEFT JOIN users u ON u.id = v.created_by
+     ORDER BY v.created_at DESC`
+  );
   const sheet = visitorSheet(rows, fields);
   sendSheet(res, `s360-ziyaretciler-${Date.now()}`, "Ziyaretçiler", sheet.headers, sheet.rows, req.query.format);
 });

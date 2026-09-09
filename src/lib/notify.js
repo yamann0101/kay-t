@@ -1,9 +1,9 @@
 import webpush from "web-push";
 import { query } from "../db/pool.js";
-import { foldSearch, namesMatch, nextNotifyAt, parseNotifyTime } from "./text.js";
+import { foldSearch, namesMatch, alertPersonMatch, nextNotifyAt, parseNotifyTime } from "./text.js";
 import { parseShift, hhmmNow, todayKey } from "./appSettings.js";
 
-export async function sendPushAll({ title, body, type = "info", tag } = {}) {
+export async function sendPushAll({ title, body, type = "info", tag, chatId, replyTo, url } = {}) {
   const t = String(title || "S-360").trim();
   const b = String(body || "").trim();
   if (!t || !b) return 0;
@@ -14,6 +14,9 @@ export async function sendPushAll({ title, body, type = "info", tag } = {}) {
     body: b,
     tag: tag || type,
     type,
+    chatId: chatId || null,
+    replyTo: replyTo || null,
+    url: url || (chatId ? `/app#chat-${chatId}` : "/app"),
   });
   await Promise.allSettled(
     rows.map((s) =>
@@ -47,14 +50,22 @@ export async function processDueKeyNotifs() {
 }
 
 export async function matchVisitorAlerts(visit) {
-  const { rows } = await query(`SELECT * FROM visitor_alerts WHERE active = TRUE`);
-  const name = foldSearch(`${visit.first_name || ""} ${visit.last_name || ""} ${visit.full_name || ""}`);
+  const { rows } = await query(`SELECT * FROM visitor_alerts WHERE active = TRUE AND matched_at IS NULL`);
   const company = foldSearch(visit.company);
   const hits = [];
+  const dismiss = [];
   for (const a of rows) {
-    if (!namesMatch(name, a.name_key)) continue;
-    if (a.company_key && company && !namesMatch(company, a.company_key)) continue;
-    hits.push(a);
+    const nameHit = alertPersonMatch(visit, a);
+    const companyHit = Boolean(a.company_key && company && namesMatch(company, a.company_key));
+    // Sadece firma eşleşir, ad/soyad uymaz → bildirim kalkar
+    if (companyHit && !nameHit) {
+      dismiss.push(a);
+      continue;
+    }
+    if (nameHit) hits.push(a);
+  }
+  for (const a of dismiss) {
+    await query(`UPDATE visitor_alerts SET active = FALSE WHERE id = $1`, [a.id]);
   }
   return hits;
 }
@@ -68,8 +79,9 @@ export async function notifyVisitorAlerts(visit, extras = []) {
     for (const a of hits) {
       if (seen.has(a.id)) continue;
       seen.add(a.id);
-      const when = [a.visit_date, a.visit_time].filter(Boolean).join(" ");
-      const bits = [person.full_name || a.full_name, person.company || a.company, when].filter(Boolean);
+      const willEnter = !(a.will_enter === false || a.will_enter === "false" || a.will_enter === 0);
+      const enterLabel = willEnter ? "İçeri GİRECEK" : "İçeri GİRMEYECEK";
+      const bits = [person.full_name || a.full_name, person.company || a.company, enterLabel].filter(Boolean);
       const note = a.notes ? ` · ${a.notes}` : "";
       await sendPushAll({
         title: "Beklenen ziyaretçi geldi",
@@ -77,8 +89,20 @@ export async function notifyVisitorAlerts(visit, extras = []) {
         type: "alert",
         tag: `alert-${a.id}`,
       });
+      if (person.id && a.notes) {
+        const enterBit = willEnter ? "İçeri GİRECEK" : "İçeri GİRMEYECEK";
+        const addNote = `${a.notes} · ${enterBit}`;
+        await query(
+          `UPDATE visitors SET notes = CASE
+             WHEN COALESCE(TRIM(notes),'') = '' THEN $2
+             ELSE notes || E'\n' || $2
+           END
+           WHERE id = $1`,
+          [person.id, addNote]
+        );
+      }
       await query(
-        `UPDATE visitor_alerts SET matched_at = NOW(), matched_visitor_id = $2 WHERE id = $1`,
+        `UPDATE visitor_alerts SET matched_at = NOW(), matched_visitor_id = $2, active = FALSE WHERE id = $1`,
         [a.id, person.id || null]
       );
       fired.push(a);

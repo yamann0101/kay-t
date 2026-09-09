@@ -79,15 +79,39 @@ function showView(name) {
   document.getElementById("openRegisterMenu")?.classList.toggle("active", name === "visitor-form");
   document.querySelector(".fab-slot")?.classList.toggle("active", name === "visitor-form");
   document.querySelector(".app-root")?.classList.toggle("reg-mode", name === "visitor-form");
+  window.chatOpen = name === "chat";
+  document.getElementById("chatFab")?.classList.toggle("hidden", name === "chat" || name === "visitor-form");
+  try {
+    sessionStorage.setItem("s360_view", name);
+  } catch {
+    /* ignore */
+  }
+  syncChatSwState();
   closeDrawer();
   if (name === "keys") loadKeys();
-  if (name === "visitors") loadVisitors();
+  if (name === "visitors") {
+    visQuick = "in";
+    loadVisitors();
+  }
   if (name === "alerts") loadAlerts();
   if (name === "directory") loadDirectory();
   if (name === "notifications") loadNotifs();
   if (name === "patrol") loadPatrols();
   if (name === "announcements") loadAnn();
+  if (name === "profile") loadProfile();
+  if (name === "chat") loadChat();
 }
+
+function syncChatSwState() {
+  try {
+    const open = Boolean(window.chatOpen && document.visibilityState === "visible");
+    navigator.serviceWorker?.controller?.postMessage({ type: "CHAT_STATE", open });
+  } catch {
+    /* ignore */
+  }
+}
+
+document.addEventListener("visibilitychange", () => syncChatSwState());
 
 function closeDrawer() {
   document.getElementById("drawer").classList.remove("open");
@@ -125,13 +149,13 @@ function tickClock() {
   const timeEl = document.getElementById("timeLine");
   if (dateEl) dateEl.textContent = p.date;
   if (timeEl) timeEl.textContent = p.time;
-  const d = new Date();
-  const full = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  const tp = trParts();
+  const full = `${tp.day} ${months[tp.m - 1]} ${tp.y}`;
   document.querySelectorAll(".js-date-full").forEach((el) => {
     el.textContent = full;
   });
   document.querySelectorAll(".js-date-week").forEach((el) => {
-    el.textContent = days[d.getDay()];
+    el.textContent = days[tp.weekday];
   });
 }
 
@@ -147,9 +171,9 @@ function arrow(dir) {
 }
 
 async function loadHome() {
-  const [sum, vis] = await Promise.all([
+  const [sum, act] = await Promise.all([
     api("/api/app/summary"),
-    api("/api/app/visitors?limit=10"),
+    api("/api/app/activity").catch(() => ({ items: [] })),
   ]);
   document.getElementById("st-giris").textContent = sum.giris;
   document.getElementById("st-cikis").textContent = sum.cikis;
@@ -158,23 +182,44 @@ async function loadHome() {
   document.getElementById("st-ziyaretci").textContent = sum.ziyaretci;
   document.getElementById("st-sevkiyat").textContent = sum.sevkiyat;
 
-  const items = vis.items || [];
+  const items = act.items || [];
   document.getElementById("moves").innerHTML = items.length
     ? items
-        .map((v) => {
-          const inside = visInside(v);
+        .map((row) => {
+          if (row.kind === "key") {
+            const who = `${row.holder_first_name || ""} ${row.holder_last_name || ""}`.trim() || row.holder_name || "—";
+            const actLabel = row.action === "iade" ? "İade" : row.action === "iptal" ? "İptal" : "Teslim";
+            return `
+      <div class="move">
+        <div class="t">${fmtTime(row.at || row.taken_at)}</div>
+        ${arrow(row.action === "iade" ? "cikis" : "giris")}
+        <div class="av">${personIcon()}</div>
+        <div class="nm">${escHtml(row.code || "Anahtar")} · ${escHtml(actLabel)}<small>${escHtml(who)}${row.holder_company ? ` · ${escHtml(row.holder_company)}` : ""}</small></div>
+        <div class="move-acts">
+          <button type="button" class="move-btn" data-home-key-copy="${row.id}">Kopyala</button>
+          <button type="button" class="move-btn" data-home-key-edit="${row.id}">Düzenle</button>
+          ${
+            row.status === "taken"
+              ? `<button type="button" class="move-btn del" data-home-key-del="${row.id}">Sil</button>`
+              : `<button type="button" class="move-btn del" data-home-key-del="${row.id}">Sil</button>`
+          }
+        </div>
+      </div>`;
+          }
+          const inside = visInside(row);
           return `
       <div class="move">
-        <div class="t">${v.entry_time || fmtTime(v.created_at)}</div>
+        <div class="t">${row.entry_time || fmtTime(row.created_at || row.at)}</div>
         ${arrow(inside ? "giris" : "cikis")}
         <div class="av">${personIcon()}</div>
-        <div class="nm">${escHtml(v.full_name || "—")}<small>${escHtml(v.company || v.category || "")}</small></div>
+        <div class="nm">${escHtml(row.full_name || "—")}<small>${escHtml(row.company || row.category || "")}</small></div>
         <div class="move-acts">
-          <button type="button" class="move-btn" data-home-copy="${v.id}">Kopyala</button>
-          <button type="button" class="move-btn" data-home-edit="${v.id}">Düzenle</button>
+          <button type="button" class="move-btn" data-home-copy="${row.id}">Kopyala</button>
+          <button type="button" class="move-btn" data-home-edit="${row.id}">Düzenle</button>
+          <button type="button" class="move-btn del" data-home-del="${row.id}">Sil</button>
           ${
             inside
-              ? `<button type="button" class="move-btn exit" data-home-exit="${v.id}">Çıkış</button>`
+              ? `<button type="button" class="move-btn exit" data-home-exit="${row.id}">Çıkış</button>`
               : `<span class="act out">Çıktı</span>`
           }
         </div>
@@ -182,6 +227,9 @@ async function loadHome() {
         })
         .join("")
     : `<div class="move"><div class="nm" style="grid-column:1/-1;color:#888;font-weight:500">Henüz hareket yok</div></div>`;
+
+  const visitors = items.filter((x) => x.kind !== "key");
+  const keys = items.filter((x) => x.kind === "key");
 
   document.querySelectorAll("[data-home-exit]").forEach((b) => {
     b.onclick = async () => {
@@ -192,13 +240,104 @@ async function loadHome() {
   });
   document.querySelectorAll("[data-home-copy]").forEach((b) => {
     b.onclick = () => {
-      const v = items.find((x) => String(x.id) === String(b.dataset.homeCopy));
+      const v = visitors.find((x) => String(x.id) === String(b.dataset.homeCopy));
       if (v) copyVisitor(v);
     };
   });
   document.querySelectorAll("[data-home-edit]").forEach((b) => {
     b.onclick = () => openVisitorSheet(b.dataset.homeEdit, "edit");
   });
+  document.querySelectorAll("[data-home-del]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Kayıt her yerden silinsin mi?")) return;
+      try {
+        await api(`/api/app/visitors/${b.dataset.homeDel}`, { method: "DELETE" });
+        toast("Kayıt silindi");
+        loadHome();
+      } catch (err) {
+        toast(err.message || "Silinemedi");
+      }
+    };
+  });
+  document.querySelectorAll("[data-home-key-copy]").forEach((b) => {
+    b.onclick = () => {
+      const k = keys.find((x) => String(x.id) === String(b.dataset.homeKeyCopy));
+      if (k) copyText(copyKeyText(k));
+    };
+  });
+  document.querySelectorAll("[data-home-key-edit]").forEach((b) => {
+    b.onclick = async () => {
+      if (!(keyCache.items || []).length) await loadKeys();
+      openKeyEditSheet(b.dataset.homeKeyEdit);
+    };
+  });
+  document.querySelectorAll("[data-home-key-del]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Anahtar teslim kaydı silinsin mi?")) return;
+      try {
+        await api(`/api/app/keys/${b.dataset.homeKeyDel}/cancel-take`, { method: "POST" });
+        toast("Anahtar kaydı silindi");
+        loadHome();
+      } catch (err) {
+        toast(err.message || "Silinemedi");
+      }
+    };
+  });
+  loadHomeNotes();
+}
+
+async function loadHomeNotes() {
+  const box = document.getElementById("homeNotes");
+  if (!box) return;
+  try {
+    const { items } = await api("/api/app/notes");
+    const list = (items || []).slice(0, 4);
+    box.innerHTML = list.length
+      ? list
+          .map(
+            (n) =>
+              `<div class="hn-item"><b>${escHtml(n.kind === "cargo" ? "Kargo" : "Not")}</b> · ${escHtml(n.created_by_name || "")}: ${escHtml(n.title)}${n.body ? ` — ${escHtml(n.body)}` : ""}</div>`
+          )
+          .join("")
+      : `<small style="color:#999">Kargo / not yok</small>`;
+  } catch {
+    box.innerHTML = `<small style="color:#999">Kargo / not yok</small>`;
+  }
+}
+
+function openNoteSheet(kind) {
+  const isCargo = kind === "cargo";
+  openSheet(
+    isCargo ? "Kargo Bildirimi" : "Not",
+    `<form class="sheet-form" id="noteForm">
+      <label>Başlık</label>
+      <input name="title" value="${isCargo ? "Kargo" : "Not"}" required />
+      <label>Açıklama</label>
+      <textarea name="body" rows="3" placeholder="Detay yazın"></textarea>
+      <button class="sheet-save" type="submit">Herkese Bildir</button>
+    </form>`
+  );
+  document.getElementById("noteForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      await enablePush(true);
+      await api("/api/app/notes", {
+        method: "POST",
+        body: {
+          kind: isCargo ? "cargo" : "note",
+          title: String(fd.get("title") || "").trim(),
+          body: String(fd.get("body") || "").trim(),
+        },
+      });
+      toast(isCargo ? "Kargo bildirimi gönderildi" : "Not iletildi");
+      closeSheet();
+      loadHomeNotes();
+      loadNotifs();
+    } catch (err) {
+      toast(err.message || "Gönderilemedi");
+    }
+  };
 }
 
 function upsertVisitorCache(v) {
@@ -760,7 +899,11 @@ let visitorCache = [];
 let visPage = 1;
 const VIS_PAGE = 8;
 let visTypeFilter = "all";
-let visQuick = "all";
+let visQuick = "in";
+window.currentUser = null;
+window.chatOpen = false;
+let chatReplyTo = null;
+let lastChatStamp = "";
 
 function visTypeOf(v) {
   if (v.visit_type === "gorusme" || v.visit_type === "calisma" || v.visit_type === "sevkiyat") return v.visit_type;
@@ -775,12 +918,14 @@ function visInside(v) {
 }
 
 function visToday(v) {
-  const d = new Date();
-  const stamp = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  const stamp = trTodayStamp();
   if (v.last_visit_date && String(v.last_visit_date).includes(stamp.slice(0, 5))) return true;
   if (v.visit_date && String(v.visit_date).includes(stamp.slice(0, 5))) return true;
   const created = new Date(v.last_visit_at || v.created_at);
-  return created.toDateString() === d.toDateString();
+  if (Number.isNaN(created.getTime())) return false;
+  const c = trParts(created);
+  const t = trParts();
+  return c.y === t.y && c.m === t.m && c.day === t.day;
 }
 
 function visEntry(v) {
@@ -916,7 +1061,12 @@ function renderVisitors() {
             <div class="vis-side">
               <span class="vis-when">${escHtml(when)}${t1 ? `<small>${escHtml(t1)}${t2 ? ` - ${escHtml(t2)}` : ""}</small>` : ""}</span>
               <span class="vis-badge ${inside ? "in" : "out"}">${inside ? "İçeride" : "Çıktı"}</span>
-              <button type="button" class="vis-copy-mini" data-vis-copy="${v.id}">Kopyala</button>
+              <div class="vis-card-acts">
+                <button type="button" class="vis-copy-mini" data-vis-copy="${v.id}">Kopyala</button>
+                ${canEditVisitor(v) ? `<button type="button" class="edit" data-vis-edit="${v.id}">Düzenle</button>` : ""}
+                ${canEditVisitor(v) ? `<button type="button" class="del" data-vis-del="${v.id}">Sil</button>` : ""}
+                ${inside ? `<button type="button" data-vis-exit="${v.id}">Çıkış</button>` : ""}
+              </div>
               <span class="vis-chev">${chev}</span>
             </div>
           </article>`;
@@ -926,17 +1076,19 @@ function renderVisitors() {
 
   document.getElementById("visPager").innerHTML =
     shown < list.length
-      ? `<button type="button" class="vis-more" id="visMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg> Daha Fazla Göster</button>`
+      ? `<button type="button" class="vis-more" id="visMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg> Daha Fazla Göster</button>
+         <button type="button" class="vis-more" id="visBulkExit" style="margin-top:6px">Toplu Çıkış</button>`
       : list.length
-        ? `<span>Toplam ${list.length} kişi</span>`
+        ? `<span>Toplam ${list.length} kişi</span><button type="button" class="vis-more" id="visBulkExit" style="margin-top:6px">Toplu Çıkış</button>`
         : "";
   document.getElementById("visMore")?.addEventListener("click", () => {
     visPage += 1;
     renderVisitors();
   });
+  document.getElementById("visBulkExit")?.addEventListener("click", () => openBulkExitSheet());
   document.querySelectorAll("[data-vis-open]").forEach((card) => {
     card.onclick = (e) => {
-      if (e.target.closest("[data-vis-copy]")) return;
+      if (e.target.closest("[data-vis-copy],[data-vis-edit],[data-vis-del],[data-vis-exit]")) return;
       openVisitorSheet(card.dataset.visOpen, "detail");
     };
   });
@@ -947,6 +1099,80 @@ function renderVisitors() {
       if (v) copyVisitor(v);
     };
   });
+  document.querySelectorAll("[data-vis-edit]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      openVisitorSheet(b.dataset.visEdit, "edit");
+    };
+  });
+  document.querySelectorAll("[data-vis-del]").forEach((b) => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm("Kayıt her yerden silinsin mi?")) return;
+      try {
+        await api(`/api/app/visitors/${b.dataset.visDel}`, { method: "DELETE" });
+        toast("Kayıt silindi");
+        await refreshVisitors();
+        loadHome();
+      } catch (err) {
+        toast(err.message || "Silinemedi");
+      }
+    };
+  });
+  document.querySelectorAll("[data-vis-exit]").forEach((b) => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
+      try {
+        await api(`/api/app/visitors/${b.dataset.visExit}/exit`, { method: "POST" });
+        toast("Çıkış kaydedildi");
+        await refreshVisitors();
+        loadHome();
+      } catch (err) {
+        toast(err.message || "Çıkış başarısız");
+      }
+    };
+  });
+}
+
+function canEditVisitor(v) {
+  const me = window.currentUser;
+  if (!me) return false;
+  if (me.role === "admin" || me.role === "supervisor") return true;
+  return String(v.created_by || "") === String(me.id);
+}
+
+async function openBulkExitSheet() {
+  try {
+    const { items } = await api("/api/app/visitors/inside-companies");
+    if (!items?.length) return toast("İçeride kimse yok");
+    openSheet(
+      "Toplu Çıkış",
+      `<div class="sheet-kv">${items
+        .map(
+          (c) => `<button type="button" class="vis-act edit" style="width:100%;margin:4px 0" data-bulk-co="${escHtml(c.company)}">${escHtml(c.company)} · ${c.n} kişi</button>`
+        )
+        .join("")}</div>`
+    );
+    document.querySelectorAll("[data-bulk-co]").forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm(`${b.dataset.bulkCo} firmasındaki herkes çıkış yapsın mı?`)) return;
+        try {
+          const r = await api("/api/app/visitors/bulk-exit", {
+            method: "POST",
+            body: { company: b.dataset.bulkCo },
+          });
+          toast(`${r.count || 0} kişi çıkış yaptı`);
+          closeSheet();
+          await refreshVisitors();
+          loadHome();
+        } catch (err) {
+          toast(err.message || "Toplu çıkış başarısız");
+        }
+      };
+    });
+  } catch (err) {
+    toast(err.message || "Liste alınamadı");
+  }
 }
 
 async function refreshVisitors() {
@@ -974,8 +1200,8 @@ async function loadAlerts() {
     document.getElementById("alertsList").innerHTML = items.length
       ? items
           .map((a) => {
-            const when = [a.visit_date, a.visit_time].filter(Boolean).join(" · ");
-            const arrived = a.matched_at ? "Geldi" : "Bekleniyor";
+            const willEnter = !(a.will_enter === false || a.will_enter === "false" || a.will_enter === 0);
+            const arrived = a.matched_at ? "Geldi" : a.active === false ? "Kaldırıldı" : "Bekleniyor";
             return `<article class="alert-card">
               <div class="who">
                 <div class="who-top">
@@ -983,7 +1209,7 @@ async function loadAlerts() {
                   <span class="vis-badge ${a.matched_at ? "out" : "in"}">${arrived}</span>
                 </div>
                 <small>${escHtml(a.company || "Firma yok")}</small>
-                <div class="meta">${when ? `<span>${escHtml(when)}</span>` : "<span>Gün/saat yok</span>"}</div>
+                <div class="meta"><span>${willEnter ? "İçeri GİRECEK" : "İçeri GİRMEYECEK"}</span></div>
                 ${a.notes ? `<div class="hist">${escHtml(a.notes)}</div>` : ""}
               </div>
               <button type="button" class="vis-act exit" data-alert-del="${a.id}">Sil</button>
@@ -1054,12 +1280,25 @@ async function openVisitorSheet(id, mode) {
       `<div class="sheet-kv">${rows}</div>
        <div class="vis-acts" style="margin-top:10px;flex-wrap:wrap">
          <button type="button" class="vis-act" id="sheetCopyBtn">Kopyala</button>
-         <button type="button" class="vis-act edit" id="sheetEditBtn">Düzenle</button>
+         ${canEditVisitor(v) ? `<button type="button" class="vis-act edit" id="sheetEditBtn">Düzenle</button>` : ""}
+         ${canEditVisitor(v) ? `<button type="button" class="vis-act" id="sheetDelBtn" style="border-color:rgba(239,68,68,.5);color:#f87171">Sil</button>` : ""}
          ${visInside(v) ? `<button type="button" class="vis-act exit" id="sheetExitBtn">Çıkış</button>` : ""}
        </div>`
     );
     document.getElementById("sheetCopyBtn").onclick = () => copyVisitor(v);
-    document.getElementById("sheetEditBtn").onclick = () => openVisitorSheet(id, "edit");
+    document.getElementById("sheetEditBtn")?.addEventListener("click", () => openVisitorSheet(id, "edit"));
+    document.getElementById("sheetDelBtn")?.addEventListener("click", async () => {
+      if (!confirm("Kayıt her yerden silinsin mi?")) return;
+      try {
+        await api(`/api/app/visitors/${id}`, { method: "DELETE" });
+        toast("Kayıt silindi");
+        closeSheet();
+        await refreshVisitors();
+        loadHome();
+      } catch (err) {
+        toast(err.message || "Silinemedi");
+      }
+    });
     document.getElementById("sheetExitBtn")?.addEventListener("click", async () => {
       await api(`/api/app/visitors/${id}/exit`, { method: "POST" });
       toast("Çıkış kaydedildi");
@@ -1206,7 +1445,8 @@ async function loadDirectory() {
 }
 
 async function loadNotifs(opts = {}) {
-  const { items } = await api("/api/app/notifications");
+  const limit = opts.all ? 100 : 40;
+  const { items } = await api(`/api/app/notifications?limit=${limit}`);
   document.getElementById("notifList").innerHTML = items.length
     ? items
         .map(
@@ -1225,6 +1465,7 @@ async function loadNotifs(opts = {}) {
   if (lastNotifStamp && newest && newest > lastNotifStamp) {
     document.getElementById("openNotif")?.classList.add("ring");
     if (window.haptic) window.haptic("ok");
+    if (typeof playNotifyBeep === "function" && !window.chatOpen) playNotifyBeep();
     setTimeout(() => document.getElementById("openNotif")?.classList.remove("ring"), 2800);
   }
   if (newest) lastNotifStamp = newest;
@@ -1435,11 +1676,11 @@ function fieldHtml(f, meta) {
 function companionBlock() {
   return `
     <div class="companion-wrap" id="companionWrap">
-      <div id="companionList"></div>
       <button type="button" class="companion-add" id="addCompanionBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
         Kişi Ekle
       </button>
+      <div id="companionList"></div>
     </div>`;
 }
 
@@ -1630,20 +1871,15 @@ function bindRegQuickSearch() {
 function renderRegFields() {
   const meta = VISIT_META[currentVisitType] || VISIT_META.calisma;
   const list = (visitorFields || []).filter((f) => f.enabled && !FORM_SKIP.has(f.key));
-  const html = [];
+  const html = [companionBlock()];
   let i = 0;
   let plateHintDone = false;
-  let companionDone = false;
   while (i < list.length) {
     const f = list[i];
     const next = list[i + 1];
     const pair = f.type !== "textarea" && next && next.type !== "textarea";
     if (pair) {
       html.push(`<div class="reg-grid">${fieldHtml(f, meta)}${fieldHtml(next, meta)}</div>`);
-      if (!companionDone && [f.key, next.key].includes("last_name")) {
-        html.push(companionBlock());
-        companionDone = true;
-      }
       if (!plateHintDone && (f.key === "plate" || next.key === "plate")) {
         html.push(`<small class="reg-hint" id="plateHint">Plaka yoksa yayan giriş, varsa araçlı giriş kaydedilir.</small>`);
         plateHintDone = true;
@@ -1651,10 +1887,6 @@ function renderRegFields() {
       i += 2;
     } else {
       html.push(fieldHtml(f, meta));
-      if (!companionDone && (f.key === "last_name" || f.key === "first_name")) {
-        html.push(companionBlock());
-        companionDone = true;
-      }
       if (!plateHintDone && f.key === "plate") {
         html.push(`<small class="reg-hint" id="plateHint">Plaka yoksa yayan giriş, varsa araçlı giriş kaydedilir.</small>`);
         plateHintDone = true;
@@ -1662,7 +1894,6 @@ function renderRegFields() {
       i += 1;
     }
   }
-  if (!companionDone) html.push(companionBlock());
   html.push(`
     <label class="reg-check" id="exitCheckWrap" style="display:none">
       <input type="checkbox" name="exited" id="vExited" />
@@ -1699,26 +1930,23 @@ function renderRegFields() {
 }
 
 function fillNowFields() {
-  const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   const dateEl = fieldEl("visit_date");
   const inEl = fieldEl("entry_time");
   const outEl = fieldEl("exit_time");
   if (dateEl) {
     if (dateEl.type === "date") {
-      dateEl.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      dateEl.value = trIsoDate();
     } else {
-      dateEl.value = `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+      dateEl.value = trTodayStamp();
     }
   }
-  if (inEl) {
-    const t = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    inEl.value = t;
-  }
+  if (inEl) inEl.value = trHm();
   if (outEl) outEl.value = "";
   const p = nowParts();
+  const tp = trParts();
   document.getElementById("regDateDay").textContent = p.date;
-  document.getElementById("regDateWeek").textContent = days[d.getDay()];
+  document.getElementById("regDateWeek").textContent = days[tp.weekday];
   syncEntryType();
 }
 
@@ -1797,35 +2025,149 @@ document.getElementById("visitorForm").addEventListener("submit", async (e) => {
     body.visit_date = isoToTr(body.visit_date);
   }
   try {
-    const data = await api("/api/app/visitors", { method: "POST", body });
+    const data = await saveVisitorOnlineOrQueue(body);
     const extra = body.companions.length ? ` (+${body.companions.length} kişi)` : "";
-    const alertN = (data.alerts || []).length;
-    toast(
-      alertN
-        ? `Beklenen ziyaretçi geldi · bildirim gönderildi${extra}`
-        : body.entry_type === "ARAÇLI"
-          ? `Araçlı giriş kaydedildi${extra}`
-          : `Yayan giriş kaydedildi${extra}`
-    );
-    e.target.reset();
+    if (data.queued) {
+      toast(`Çevrimdışı kaydedildi · internet gelince gönderilecek${extra}`);
+    } else {
+      const alertN = (data.alerts || []).length;
+      toast(
+        alertN
+          ? `Beklenen ziyaretçi geldi · bildirim gönderildi${extra}`
+          : body.entry_type === "ARAÇLI"
+            ? `Araçlı giriş kaydedildi${extra}`
+            : `Yayan giriş kaydedildi${extra}`
+      );
+    }
+    clearVisitorForm(e.target);
     showView("home");
-    loadHome();
+    loadHome().catch(() => {});
   } catch (err) {
     toast(err.message || "Kayıt başarısız");
   }
 });
 
-document.getElementById("visOpenMenu").onclick = openDrawer;
-document.getElementById("alertOpenMenu").onclick = openDrawer;
+function clearVisitorForm(form) {
+  form?.reset();
+  setCompanions([]);
+  fillNowFields();
+  const outEl = fieldEl("exit_time");
+  if (outEl) outEl.value = "";
+  const exited = document.getElementById("vExited");
+  if (exited) exited.checked = false;
+  syncEntryType();
+}
+
+const OUTBOX_KEY = "s360_outbox_visitors";
+
+function readOutbox() {
+  try {
+    return JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeOutbox(list) {
+  localStorage.setItem(OUTBOX_KEY, JSON.stringify(list || []));
+}
+
+async function saveVisitorOnlineOrQueue(body) {
+  if (!navigator.onLine) {
+    const q = readOutbox();
+    q.push({ id: `local-${Date.now()}`, body, at: new Date().toISOString() });
+    writeOutbox(q);
+    updateOfflineBanner();
+    return { queued: true };
+  }
+  try {
+    return await api("/api/app/visitors", { method: "POST", body });
+  } catch (err) {
+    const msg = String(err.message || "");
+    if (/failed to fetch|network|internet|load failed|offline/i.test(msg) || !navigator.onLine) {
+      const q = readOutbox();
+      q.push({ id: `local-${Date.now()}`, body, at: new Date().toISOString() });
+      writeOutbox(q);
+      updateOfflineBanner();
+      return { queued: true };
+    }
+    throw err;
+  }
+}
+
+async function flushOutbox() {
+  if (!navigator.onLine) return;
+  const q = readOutbox();
+  if (!q.length) {
+    updateOfflineBanner();
+    return;
+  }
+  const left = [];
+  let ok = 0;
+  for (const item of q) {
+    try {
+      await api("/api/app/visitors", { method: "POST", body: item.body });
+      ok += 1;
+    } catch {
+      left.push(item);
+    }
+  }
+  writeOutbox(left);
+  updateOfflineBanner();
+  if (ok) {
+    toast(`${ok} çevrimdışı kayıt gönderildi`);
+    loadHome().catch(() => {});
+  }
+}
+
+function updateOfflineBanner() {
+  const el = document.getElementById("offlineBanner");
+  if (!el) return;
+  const q = readOutbox().length;
+  if (!navigator.onLine) {
+    el.classList.add("show");
+    el.classList.remove("sync");
+    el.textContent = q
+      ? `Çevrimdışı · ${q} kayıt bekliyor`
+      : "Çevrimdışı · kayıtlar cihazda tutulur";
+    return;
+  }
+  if (q) {
+    el.classList.add("show", "sync");
+    el.textContent = `${q} kayıt senkronize ediliyor…`;
+    return;
+  }
+  el.classList.remove("show", "sync");
+}
+
+function isRegFormDirty() {
+  if (!document.getElementById("view-visitor-form")?.classList.contains("active")) return false;
+  const keys = ["first_name", "last_name", "company", "plate", "notes", "host", "phone"];
+  for (const k of keys) {
+    if (String(fieldEl(k)?.value || "").trim()) return true;
+  }
+  if (readCompanions().length) return true;
+  return false;
+}
+
+function confirmRefreshIfDirty() {
+  if (!isRegFormDirty()) return true;
+  return confirm("Kayıt formu dolu. Yenilerseniz yazdıklarınız silinir. Devam edilsin mi?");
+}
+
+function doAppReload() {
+  if (!confirmRefreshIfDirty()) return;
+  location.reload();
+}
+
 document.getElementById("alertForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const body = {
     full_name: String(fd.get("full_name") || "").trim(),
     company: String(fd.get("company") || "").trim(),
-    visit_date: isoToTr(fd.get("visit_date")),
-    visit_time: String(fd.get("visit_time") || "").trim(),
     notes: String(fd.get("notes") || "").trim(),
+    will_enter: String(fd.get("will_enter") || "1") !== "0",
   };
   if (!body.full_name) return toast("İsim gerekli");
   try {
@@ -1833,11 +2175,14 @@ document.getElementById("alertForm").addEventListener("submit", async (e) => {
     await api("/api/app/alerts", { method: "POST", body });
     toast("Haber verildi · bildirim gönderildi");
     e.target.reset();
+    e.target.querySelector('input[name="will_enter"][value="1"]')?.setAttribute("checked", "checked");
     loadAlerts();
   } catch (err) {
     toast(err.message || "Kayıt başarısız");
   }
 });
+document.getElementById("visOpenMenu").onclick = openDrawer;
+document.getElementById("alertOpenMenu").onclick = openDrawer;
 document.getElementById("keyOpenMenu").onclick = openDrawer;
 document.getElementById("keyNewBtn").onclick = openNewKeySheet;
 document.getElementById("keySearch").addEventListener("input", renderKeys);
@@ -1868,7 +2213,7 @@ document.getElementById("visClear").onclick = () => {
   document.getElementById("visDate").value = "";
   document.getElementById("visSort").value = "new";
   visTypeFilter = "all";
-  visQuick = "all";
+  visQuick = "in";
   visPage = 1;
   renderVisitors();
 };
@@ -1935,6 +2280,7 @@ async function boot() {
   try {
     const data = await api("/api/auth/me");
     me = data.user;
+    window.currentUser = me;
   } catch {
     location.href = "/";
     return;
@@ -1944,20 +2290,22 @@ async function boot() {
   document.getElementById("helloName").textContent = me.full_name;
   document.getElementById("drawerName").textContent = me.full_name;
   document.getElementById("drawerRole").textContent = roleLabel;
-  document.getElementById("whoAv").textContent = String(me.full_name || "S")
+  const initials = String(me.full_name || "S")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-  const profileName = document.getElementById("profileName");
-  const profileRole = document.getElementById("profileRole");
-  if (profileName) profileName.textContent = me.full_name;
-  if (profileRole) profileRole.textContent = roleLabel;
+  document.getElementById("whoAv").textContent = initials;
+  const chip = document.getElementById("openProfile");
+  if (chip) {
+    if (me.photo_url) chip.innerHTML = `<img src="${escHtml(me.photo_url)}" alt="" />`;
+    else chip.textContent = initials || "S";
+  }
   if (me.role === "admin") {
-    document.getElementById("adminLink").classList.remove("hidden");
-    document.getElementById("keyNewBtn").classList.remove("hidden");
+    document.getElementById("adminLink")?.classList.remove("hidden");
+    document.getElementById("keyNewBtn")?.classList.remove("hidden");
   }
   tickClock();
   setInterval(tickClock, 30_000);
@@ -1967,14 +2315,257 @@ async function boot() {
   enablePush();
   bindUppercase(document);
   checkShiftTicker();
+  updateOfflineBanner();
+  flushOutbox().catch(() => {});
+  window.addEventListener("online", () => {
+    updateOfflineBanner();
+    flushOutbox().catch(() => {});
+  });
+  window.addEventListener("offline", () => updateOfflineBanner());
   setInterval(() => {
     loadNotifs().catch(() => {});
     checkShiftTicker();
-  }, 15_000);
+    loadChat({ silent: true }).catch(() => {});
+  }, 12_000);
   document.getElementById("enableNotifBtn")?.addEventListener("click", async () => {
     const ok = await enablePush(true);
     if (ok) toast("Bildirim izni açıldı");
   });
+  document.getElementById("btnRefresh")?.addEventListener("click", () => doAppReload());
+  document.getElementById("openProfile")?.addEventListener("click", () => showView("profile"));
+  document.getElementById("homeBulkExit")?.addEventListener("click", () => openBulkExitSheet());
+  document.getElementById("homeCargoBtn")?.addEventListener("click", () => openNoteSheet("cargo"));
+  document.getElementById("homeNoteBtn")?.addEventListener("click", () => openNoteSheet("note"));
+  document.getElementById("chatFab")?.addEventListener("click", () => showView("chat"));
+  document.getElementById("notifReadAll")?.addEventListener("click", async () => {
+    await loadNotifs({ markRead: true, all: true });
+    toast("Tümü okundu");
+  });
+  document.getElementById("notifSeeAll")?.addEventListener("click", () => loadNotifs({ all: true }));
+  document.getElementById("profileForm")?.addEventListener("submit", saveProfile);
+  document.getElementById("passwordForm")?.addEventListener("submit", savePassword);
+  document.getElementById("chatForm")?.addEventListener("submit", sendChat);
+  document.getElementById("chatReplyCancel")?.addEventListener("click", () => {
+    chatReplyTo = null;
+    document.getElementById("chatReplyBar")?.classList.add("hidden");
+  });
+  navigator.serviceWorker?.addEventListener("message", (ev) => {
+    if (ev.data?.type === "OPEN_CHAT") {
+      showView("chat");
+      if (ev.data.chatId) setTimeout(() => jumpToChatMessage(ev.data.chatId), 350);
+    }
+  });
+  let restored = "home";
+  try {
+    restored = sessionStorage.getItem("s360_view") || "home";
+  } catch {
+    restored = "home";
+  }
+  if (location.hash.startsWith("#chat-")) {
+    const id = location.hash.slice(6);
+    showView("chat");
+    setTimeout(() => jumpToChatMessage(id), 400);
+  } else if (restored && restored !== "home") {
+    showView(restored);
+  }
+}
+
+async function loadProfile() {
+  try {
+    const { user } = await api("/api/app/profile");
+    window.currentUser = user;
+    me = user;
+    const roleLabel =
+      user.role === "admin" ? "Yönetici" : user.role === "supervisor" ? "Süpervizör" : "Güvenlik Görevlisi";
+    document.getElementById("profileName").textContent = user.full_name || "—";
+    document.getElementById("profileRole").textContent = roleLabel;
+    document.getElementById("profileDays").textContent = user.days_worked ?? 0;
+    const av = document.getElementById("profileAvatar");
+    if (user.photo_url) av.innerHTML = `<img src="${escHtml(user.photo_url)}" alt="" />`;
+    else {
+      av.textContent = String(user.full_name || "S")
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase();
+    }
+    document.getElementById("pfName").value = user.full_name || "";
+    document.getElementById("pfId").value = user.id_no || "";
+    document.getElementById("pfGender").value = user.gender || "";
+    document.getElementById("pfArmed").value = user.armed || "";
+    document.getElementById("pfShoe").value = user.shoe_size || "";
+    document.getElementById("pfPants").value = user.pants_size || "";
+    document.getElementById("pfShirt").value = user.shirt_size || "";
+    document.getElementById("pfCoat").value = user.coat_size || "";
+    document.getElementById("pfSweater").value = user.sweater_size || "";
+    document.getElementById("pfStart").value = user.start_date
+      ? String(user.start_date).slice(0, 10)
+      : "";
+    document.getElementById("pfPhoto").value = user.photo_url || "";
+  } catch (err) {
+    toast(err.message || "Profil yüklenemedi");
+  }
+}
+
+async function saveProfile(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = Object.fromEntries(fd.entries());
+  try {
+    const { user } = await api("/api/app/profile", { method: "PATCH", body });
+    window.currentUser = user;
+    me = user;
+    toast("Profil kaydedildi");
+    loadProfile();
+  } catch (err) {
+    toast(err.message || "Kaydedilemedi");
+  }
+}
+
+async function savePassword(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    await api("/api/app/profile/password", {
+      method: "POST",
+      body: { current: fd.get("current"), next: fd.get("next") },
+    });
+    toast("Şifre güncellendi");
+    e.target.reset();
+  } catch (err) {
+    toast(err.message || "Şifre değiştirilemedi");
+  }
+}
+
+async function loadChat(opts = {}) {
+  const { items } = await api("/api/app/chat");
+  const box = document.getElementById("chatList");
+  if (!box) return;
+  const meId = window.currentUser?.id;
+  const newest = items?.[items.length - 1]?.created_at || "";
+  const isNew = Boolean(newest && lastChatStamp && newest > lastChatStamp);
+  if (isNew && !window.chatOpen) {
+    document.getElementById("chatDot").style.display = "block";
+    if (typeof playNotifyBeep === "function") playNotifyBeep();
+    if (window.haptic) window.haptic("ok");
+  }
+  if (newest) lastChatStamp = newest;
+  if (window.chatOpen) document.getElementById("chatDot").style.display = "none";
+  if (opts.silent && !window.chatOpen) return;
+
+  box.innerHTML = (items || [])
+    .map((m) => {
+      const mine = String(m.user_id) === String(meId);
+      return `<div class="chat-bubble${mine ? " mine" : ""}" data-mid="${m.id}" data-reply-to="${m.reply_to || ""}">
+        ${m.reply_body ? `<button type="button" class="reply-ref" data-jump="${m.reply_to || ""}">${escHtml(m.reply_user_name || "")}: ${escHtml(m.reply_body)}</button>` : ""}
+        <div class="who">${escHtml(m.user_name || "—")} · ${fmtDateTime(m.created_at)}</div>
+        <div class="chat-body">${escHtml(m.body)}</div>
+        <div class="chat-acts">
+          <button type="button" class="vis-act" data-reply="${m.id}">Cevapla</button>
+          ${window.currentUser?.role === "admin" ? `<button type="button" class="vis-act" data-cdel="${m.id}">Sil</button>` : ""}
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  box.querySelectorAll("[data-reply]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      setChatReply(b.dataset.reply);
+    };
+  });
+  box.querySelectorAll("[data-cdel]").forEach((b) => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm("Mesaj silinsin mi?")) return;
+      await api(`/api/app/chat/${b.dataset.cdel}`, { method: "DELETE" });
+      loadChat();
+    };
+  });
+  box.querySelectorAll("[data-jump]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      if (b.dataset.jump) jumpToChatMessage(b.dataset.jump);
+    };
+  });
+  bindChatSwipe(box);
+  if (!opts.silent) box.scrollTop = box.scrollHeight;
+}
+
+function setChatReply(id) {
+  chatReplyTo = id;
+  const input = document.getElementById("chatInput");
+  input?.focus();
+  const bar = document.getElementById("chatReplyBar");
+  if (bar) {
+    bar.classList.remove("hidden");
+    bar.querySelector("span").textContent = "Cevap yazılıyor…";
+  }
+  toast("Cevap modu");
+}
+
+function jumpToChatMessage(id) {
+  const safe = String(id || "").replace(/"/g, "");
+  const el = document.querySelector(`#chatList [data-mid="${safe}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 1400);
+}
+
+function bindChatSwipe(box) {
+  box.querySelectorAll(".chat-bubble").forEach((bubble) => {
+    let x0 = 0;
+    let dragging = false;
+    bubble.addEventListener(
+      "touchstart",
+      (e) => {
+        x0 = e.touches[0].clientX;
+        dragging = true;
+        bubble.style.transition = "none";
+      },
+      { passive: true }
+    );
+    bubble.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!dragging) return;
+        const dx = Math.max(0, Math.min(88, e.touches[0].clientX - x0));
+        bubble.style.transform = `translateX(${dx}px)`;
+      },
+      { passive: true }
+    );
+    bubble.addEventListener(
+      "touchend",
+      (e) => {
+        if (!dragging) return;
+        dragging = false;
+        const dx = e.changedTouches[0].clientX - x0;
+        bubble.style.transition = "transform 0.22s ease";
+        bubble.style.transform = "";
+        if (dx > 56) setChatReply(bubble.dataset.mid);
+      },
+      { passive: true }
+    );
+  });
+}
+
+async function sendChat(e) {
+  e.preventDefault();
+  const input = document.getElementById("chatInput");
+  const body = String(input.value || "").trim();
+  if (!body) return;
+  try {
+    await api("/api/app/chat", { method: "POST", body: { body, reply_to: chatReplyTo } });
+    input.value = "";
+    chatReplyTo = null;
+    document.getElementById("chatReplyBar")?.classList.add("hidden");
+    loadChat();
+  } catch (err) {
+    toast(err.message || "Gönderilemedi");
+  }
 }
 
 boot();

@@ -1,4 +1,4 @@
-const CACHE = "s360-v34";
+const CACHE = "s360-v37";
 const PRECACHE = [
   "/",
   "/app",
@@ -18,6 +18,8 @@ const PRECACHE = [
   "/manifest.json",
 ];
 
+let chatOpenFocused = false;
+
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE).catch(() => {})));
   self.skipWaiting();
@@ -34,6 +36,9 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+  if (event.data?.type === "CHAT_STATE") {
+    chatOpenFocused = Boolean(event.data.open);
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -42,7 +47,6 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/")) return;
 
-  // HTML / navigasyon: her zaman ağdan (yenileme çalışsın)
   const isNav =
     request.mode === "navigate" ||
     url.pathname === "/" ||
@@ -82,21 +86,47 @@ self.addEventListener("push", (event) => {
     /* default */
   }
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
-      vibrate: [280, 80, 280, 80, 400],
-      silent: false,
-      renotify: true,
-      requireInteraction: true,
-      tag: data.tag || "s360",
-      timestamp: Date.now(),
-    })
+    (async () => {
+      if (data.type === "chat" && chatOpenFocused) return;
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const focused = clients.some((c) => c.focused);
+      if (data.type === "chat" && focused && chatOpenFocused) return;
+      await self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        vibrate: [280, 80, 280, 80, 400],
+        silent: false,
+        renotify: true,
+        requireInteraction: true,
+        tag: data.tag || "s360",
+        timestamp: Date.now(),
+        data: {
+          url: data.url || "/app",
+          chatId: data.chatId || null,
+          replyTo: data.replyTo || null,
+          type: data.type || "info",
+        },
+      });
+    })()
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(self.clients.openWindow("/app"));
+  const meta = event.notification.data || {};
+  const target = meta.chatId ? `/app#chat-${meta.chatId}` : meta.url || "/app";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const c of all) {
+        if (c.url.includes("/app") && "focus" in c) {
+          await c.focus();
+          c.postMessage({ type: "OPEN_CHAT", chatId: meta.chatId || null });
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })()
+  );
 });

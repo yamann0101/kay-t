@@ -35,6 +35,32 @@ export function namesMatch(left, right) {
   return bw.every((w) => w.length < 2 || has(aw, w)) || aw.every((w) => w.length < 2 || has(bw, w));
 }
 
+/** Ad veya soyad (veya ikisi) eşleşmesi — sadece firma yetmez */
+export function alertPersonMatch(visit, alert) {
+  const vFirst = foldSearch(visit.first_name || "");
+  const vLast = foldSearch(visit.last_name || "");
+  const vFull = foldSearch(visit.full_name || `${visit.first_name || ""} ${visit.last_name || ""}`);
+  const aFull = foldSearch(alert.full_name || alert.name_key || "");
+  if (!aFull) return false;
+  const aParts = aFull.split(" ").filter(Boolean);
+  const aFirst = aParts[0] || "";
+  const aLast = aParts.length > 1 ? aParts[aParts.length - 1] : "";
+
+  const tokenHit = (left, right) => {
+    if (!left || !right) return false;
+    if (left === right) return true;
+    if (left.length >= 3 && right.length >= 3 && (left.includes(right) || right.includes(left))) return true;
+    return false;
+  };
+
+  if (aParts.length === 1) {
+    return tokenHit(vFirst, aFirst) || tokenHit(vLast, aFirst) || namesMatch(vFull, aFull);
+  }
+  const firstOk = tokenHit(vFirst, aFirst) || tokenHit(vFull.split(" ")[0] || "", aFirst);
+  const lastOk = tokenHit(vLast, aLast) || tokenHit(vFull.split(" ").slice(-1)[0] || "", aLast);
+  return firstOk || lastOk || namesMatch(vFull, aFull);
+}
+
 export function parseNotifyTime(raw) {
   const s = String(raw || "").trim();
   const m = s.match(/^(\d{1,2})[:.](\d{2})$/);

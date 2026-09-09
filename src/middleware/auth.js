@@ -30,7 +30,7 @@ export async function authRequired(req, res, next) {
   try {
     const payload = jwt.verify(token, config.jwtSecret);
     const { rows } = await query(
-      "SELECT id, username, full_name, role, phone, active FROM users WHERE id = $1",
+      "SELECT id, username, full_name, role, phone, active, gender, armed, id_no, photo_url, shoe_size, pants_size, shirt_size, coat_size, sweater_size, start_date FROM users WHERE id = $1",
       [payload.id]
     );
     if (!rows[0] || !rows[0].active) {

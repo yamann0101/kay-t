@@ -6,7 +6,7 @@ import { backfillVisitorPeople } from "../lib/visitors.js";
 import { DEFAULT_COPY, DEFAULT_SHIFT } from "../lib/appSettings.js";
 
 /** Şema sürümü: her yapısal değişiklikte artır. Seed tekrarlanmaz. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 4;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -421,6 +421,38 @@ export async function migrate() {
     );
   }
   await query(`UPDATE keys SET pinned = TRUE WHERE code IN ('A-01','Ü-1','O-1','S-1')`);
+
+  await exec(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS armed TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS id_no TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS shoe_size TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS pants_size TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS shirt_size TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS coat_size TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS sweater_size TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS start_date DATE;
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      body TEXT NOT NULL,
+      reply_to UUID REFERENCES chat_messages(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_created ON chat_messages(created_at DESC);
+    CREATE TABLE IF NOT EXISTS site_notes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      kind TEXT NOT NULL DEFAULT 'note' CHECK (kind IN ('note','cargo')),
+      title TEXT NOT NULL,
+      body TEXT,
+      created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_site_notes_created ON site_notes(created_at DESC);
+    ALTER TABLE visitor_alerts ADD COLUMN IF NOT EXISTS will_enter BOOLEAN NOT NULL DEFAULT TRUE;
+  `);
+
   const result = await seedIfEmpty();
   await backfillVisitorPeople();
   await query(

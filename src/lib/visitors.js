@@ -55,8 +55,11 @@ export function mapRowByHeaders(rowObj, fields) {
 
 export function visitorSheet(rows, fields) {
   const cols = enabledFields(fields);
-  const headers = cols.map((f) => f.label);
-  const data = rows.map((row) => cols.map((f) => visitorValue(row, f.key)));
+  const headers = [...cols.map((f) => f.label), "Kayıt Eden"];
+  const data = rows.map((row) => [
+    ...cols.map((f) => visitorValue(row, f.key)),
+    row.created_by_name || "",
+  ]);
   return { headers, rows: data, fields: cols };
 }
 

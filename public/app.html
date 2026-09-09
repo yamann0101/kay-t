@@ -14,9 +14,9 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=43" />
-  <link rel="stylesheet" href="/css/app.css?v=43" />
-  <link rel="stylesheet" href="/css/login.css?v=43" />
+  <link rel="stylesheet" href="/css/tokens.css?v=46" />
+  <link rel="stylesheet" href="/css/app.css?v=46" />
+  <link rel="stylesheet" href="/css/login.css?v=46" />
 </head>
 <body class="framed">
   <div class="phone-shell app-root">
@@ -29,11 +29,18 @@
         <strong class="gold-text">S-360</strong>
         <em>GÜVENLİ DAHA YARINLAR</em>
       </div>
-      <button class="bell" id="openNotif" aria-label="Bildirimler">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-        <i class="dot" id="notifDot"></i>
-      </button>
+      <div class="header-actions">
+        <button type="button" id="btnRefresh" aria-label="Yenile" title="Yenile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 4v6h-6"/></svg>
+        </button>
+        <button type="button" class="bell" id="openNotif" aria-label="Bildirimler">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <i class="dot" id="notifDot"></i>
+        </button>
+        <button type="button" class="profile-chip" id="openProfile" aria-label="Profil">S</button>
+      </div>
     </header>
+    <div class="offline-banner" id="offlineBanner" role="status"></div>
 
     <section class="view active" id="view-home">
       <div id="homeTicker" class="home-ticker hidden"></div>
@@ -72,18 +79,25 @@
       <div class="section quick-sec">
         <div class="section-h">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 10-14h-7z"/></svg>
-          <h3>Hızlı İşlemler</h3>
+          <h3>Hızlı Erişim</h3>
         </div>
         <div class="quick">
-          <button class="qcard danger" data-view="emergency">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3c3 4 6 6 6 10a6 6 0 1 1-12 0c0-4 3-6 6-10z"/><path d="M12 13v.01"/></svg>
-            <div><b>Acil Durum</b><span>Hızlı Bildirim Gönder</span></div>
+          <button class="qcard mini" type="button" id="homeBulkExit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H3v-6"/><path d="M14 10L3 21"/><path d="M21 10V4a1 1 0 0 0-1-1H8"/></svg>
+            <div><b>Toplu Çıkış</b><span>Firmaya göre</span></div>
           </button>
-          <button class="qcard" data-view="patrol">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/></svg>
-            <div><b>Devriye</b><span>Devriye Noktaları</span></div>
+          <button class="qcard mini" type="button" id="homeCargoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+            <div><b>Kargo</b><span>Bildirim gönder</span></div>
+          </button>
+          <button class="qcard mini" type="button" id="homeNoteBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M8 11h8M8 15h6"/></svg>
+            <div><b>Not</b><span>Herkese ilet</span></div>
           </button>
         </div>
+      </div>
+      <div class="home-notes" id="homeNotes">
+        <small style="color:#999">Kargo / not yok</small>
       </div>
     </section>
 
@@ -395,17 +409,22 @@
           <label>Firma
             <input name="company" placeholder="ABC LOJİSTİK" autocomplete="off" />
           </label>
-          <div class="alert-row">
-            <label>Gün
-              <input type="date" name="visit_date" />
-            </label>
-            <label>Saat
-              <input type="time" name="visit_time" />
-            </label>
-          </div>
           <label>Açıklama
             <textarea name="notes" rows="2" placeholder="Kapıda bekleniyor, güvenlik uyarısı vb."></textarea>
           </label>
+          <div class="alert-enter">
+            <span>İçeri durumu</span>
+            <div class="alert-enter-opts">
+              <label class="alert-chip">
+                <input type="radio" name="will_enter" value="1" checked />
+                <em>İçeri GİRECEK</em>
+              </label>
+              <label class="alert-chip">
+                <input type="radio" name="will_enter" value="0" />
+                <em>İçeri GİRMEYECEK</em>
+              </label>
+            </div>
+          </div>
           <button class="btn-gold" type="submit">Kaydet ve bildir</button>
         </form>
         <div class="vis-list-h"><b id="alertListTitle">Beklenen listesi (0)</b></div>
@@ -415,7 +434,13 @@
 
     <section class="view" id="view-notifications">
       <div class="page-pad">
-        <h2 class="page-title">Bildirimler</h2>
+        <div class="page-title-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+          <h2 class="page-title" style="margin:0">Bildirimler</h2>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="vis-act" id="notifReadAll">Tümü okundu</button>
+            <button type="button" class="vis-act edit" id="notifSeeAll">Tümünü gör</button>
+          </div>
+        </div>
         <div class="list-card" id="notifList"></div>
       </div>
     </section>
@@ -457,10 +482,58 @@
     </section>
     <section class="view" id="view-profile">
       <div class="page-pad">
-        <h2 class="page-title">Profilim</h2>
-        <div class="list-card">
-          <div class="item-row"><b id="profileName">—</b><span id="profileRole">—</span></div>
+        <div class="profile-hero">
+          <div class="profile-avatar" id="profileAvatar">S</div>
+          <h2 class="page-title" style="margin:0" id="profileName">—</h2>
+          <span id="profileRole" style="color:#aaa;font-size:13px">—</span>
+          <p style="margin:8px 0 0;color:var(--gold-2);font-size:12px;font-weight:700">Çalışılan gün: <b id="profileDays">0</b></p>
         </div>
+        <form class="list-card profile-grid" id="profileForm" style="padding:12px">
+          <label>Ad Soyad<input name="full_name" id="pfName" /></label>
+          <label>Kimlik No<input name="id_no" id="pfId" /></label>
+          <label>Cinsiyet
+            <select name="gender" id="pfGender">
+              <option value="">—</option>
+              <option value="erkek">Erkek</option>
+              <option value="kadin">Kadın</option>
+            </select>
+          </label>
+          <label>Silah
+            <select name="armed" id="pfArmed">
+              <option value="">—</option>
+              <option value="silahli">Silahlı</option>
+              <option value="silahsiz">Silahsız</option>
+            </select>
+          </label>
+          <label>Ayakkabı<input name="shoe_size" id="pfShoe" /></label>
+          <label>Pantolon<input name="pants_size" id="pfPants" /></label>
+          <label>Gömlek<input name="shirt_size" id="pfShirt" /></label>
+          <label>Mont<input name="coat_size" id="pfCoat" /></label>
+          <label>Kazak<input name="sweater_size" id="pfSweater" /></label>
+          <label>İşe başlama<input type="date" name="start_date" id="pfStart" /></label>
+          <label style="grid-column:1/-1">Foto URL<input name="photo_url" id="pfPhoto" placeholder="https://..." /></label>
+          <button class="btn-gold" type="submit" style="grid-column:1/-1;margin-top:6px">Profili Kaydet</button>
+        </form>
+        <form class="list-card" id="passwordForm" style="padding:12px;margin-top:12px;display:grid;gap:8px">
+          <b>Şifre Değiştir</b>
+          <input type="password" name="current" placeholder="Mevcut şifre" required />
+          <input type="password" name="next" placeholder="Yeni şifre" required />
+          <button class="btn-gold" type="submit">Şifreyi Güncelle</button>
+        </form>
+      </div>
+    </section>
+    <section class="view" id="view-chat">
+      <div class="page-pad">
+        <h2 class="page-title">Sohbet</h2>
+        <div class="chat-list" id="chatList"></div>
+        <div class="chat-reply-bar hidden" id="chatReplyBar">
+          <span>Cevap yazılıyor…</span>
+          <button type="button" id="chatReplyCancel" aria-label="İptal">×</button>
+        </div>
+        <form class="chat-compose" id="chatForm">
+          <input id="chatInput" placeholder="Mesaj yaz..." autocomplete="off" />
+          <button class="btn-gold" type="submit" style="width:auto;padding:0 14px;height:40px;border-radius:20px">Gönder</button>
+        </form>
       </div>
     </section>
     <section class="view" id="view-help">
@@ -513,6 +586,11 @@
         </button>
       </div>
     </nav>
+
+    <button type="button" class="chat-fab" id="chatFab" aria-label="Sohbet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+      <i class="dot" id="chatDot"></i>
+    </button>
 
     <div class="drawer-bg" id="drawerBg"></div>
     <aside class="drawer" id="drawer">
@@ -609,9 +687,9 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=43"></script>
-  <script src="/js/api.js?v=43"></script>
-  <script src="/js/app.js?v=43"></script>
-  <script src="/js/pwa.js?v=43"></script>
+  <script src="/js/haptic.js?v=46"></script>
+  <script src="/js/api.js?v=46"></script>
+  <script src="/js/app.js?v=46"></script>
+  <script src="/js/pwa.js?v=46"></script>
 </body>
 </html>

@@ -18,9 +18,11 @@ function toast(msg) {
   setTimeout(() => el.classList.remove("show"), 2400);
 }
 
+const TR_TZ = "Europe/Istanbul";
+
 function fmtTime(iso) {
   const d = new Date(iso);
-  return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: TR_TZ });
 }
 
 function fmtDateTime(iso) {
@@ -29,6 +31,7 @@ function fmtDateTime(iso) {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: TR_TZ,
   });
 }
 
@@ -38,12 +41,49 @@ const months = [
 ];
 const days = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
 
+function trParts(d = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TR_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t) => parts.find((p) => p.type === t)?.value || "";
+  const y = Number(get("year"));
+  const m = Number(get("month"));
+  const day = Number(get("day"));
+  const hour = get("hour").padStart(2, "0");
+  const minute = get("minute").padStart(2, "0");
+  const wdMap = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 0 };
+  const weekday = wdMap[get("weekday")] ?? new Date(`${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}T12:00:00+03:00`).getDay();
+  return { y, m, day, hour, minute, weekday };
+}
+
 function nowParts() {
-  const d = new Date();
+  const p = trParts();
   return {
-    date: `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`,
-    time: `${days[d.getDay()]} ${d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}`,
+    date: `${p.day} ${months[p.m - 1]} ${p.y}`,
+    time: `${days[p.weekday]} ${p.hour}:${p.minute}`,
   };
+}
+
+function trTodayStamp() {
+  const p = trParts();
+  return `${String(p.day).padStart(2, "0")}.${String(p.m).padStart(2, "0")}.${p.y}`;
+}
+
+function trIsoDate() {
+  const p = trParts();
+  return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
+function trHm() {
+  const p = trParts();
+  return `${p.hour}:${p.minute}`;
 }
 
 function haptic(kind = "tap") {
@@ -53,5 +93,28 @@ function haptic(kind = "tap") {
     navigator.vibrate(kind === "heavy" ? [16, 10, 24] : 12);
   } catch {
     /* cihaz desteklemiyorsa sessiz geç */
+  }
+}
+
+function playNotifyBeep() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.value = 880;
+    g.gain.value = 0.0001;
+    o.connect(g);
+    g.connect(ctx.destination);
+    const now = ctx.currentTime;
+    g.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+    o.start(now);
+    o.stop(now + 0.3);
+    setTimeout(() => ctx.close().catch(() => {}), 400);
+  } catch {
+    /* ignore */
   }
 }
