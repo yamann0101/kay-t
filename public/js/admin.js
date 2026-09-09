@@ -3,6 +3,7 @@ const titles = {
   visitors: ["Ziyaretçiler", "Kayıt, Excel, silme"],
   users: ["Kullanıcılar", "Ekle, güncelle, sil"],
   keys: ["Anahtarlar", "Bölüm, numara, isim ve sık kullanılan"],
+  contacts: ["Rehber", "Telefon rehberi kişileri"],
   logs: ["Loglar", "Tüm işlem geçmişi"],
   announce: ["Duyurular", "Saha duyurularını yönet"],
   push: ["Bildirim", "Cihazlara anlık mesaj"],
@@ -32,6 +33,7 @@ document.querySelectorAll(".aside nav button").forEach((b) => {
       loadSections();
       loadKeys();
     }
+    if (b.dataset.view === "contacts") loadContacts();
     if (b.dataset.view === "logs") loadLogs();
     if (b.dataset.view === "announce") loadAnn();
     if (b.dataset.view === "settings") {
@@ -247,6 +249,46 @@ document.getElementById("userForm").onsubmit = async (e) => {
     toast(err.message);
   }
 };
+
+async function loadContacts() {
+  const { items } = await api("/api/admin/contacts");
+  const box = document.getElementById("contactRows");
+  if (!box) return;
+  box.innerHTML = (items || []).length
+    ? items
+        .map(
+          (c) => `<tr>
+        <td>${esc(c.name)}</td>
+        <td>${esc(c.title || "—")}</td>
+        <td>${esc(c.phone || "—")}</td>
+        <td>${esc(c.unit || "—")}</td>
+        <td><button class="btn danger small" type="button" data-del-contact="${c.id}">Sil</button></td>
+      </tr>`
+        )
+        .join("")
+    : `<tr><td colspan="5" class="muted">Henüz kişi yok — sağdan ekleyin</td></tr>`;
+  box.querySelectorAll("[data-del-contact]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Rehberden silinsin mi?")) return;
+      await api(`/api/admin/contacts/${b.dataset.delContact}`, { method: "DELETE" });
+      toast("Silindi");
+      loadContacts();
+    };
+  });
+}
+
+document.getElementById("contactForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    await api("/api/admin/contacts", { method: "POST", body });
+    e.target.reset();
+    toast("Kişi eklendi");
+    loadContacts();
+  } catch (err) {
+    toast(err.message || "Eklenemedi");
+  }
+});
 
 const KEY_STATUS_TR = { available: "Ofiste", taken: "Teslimde", lost: "Kayıp / Bakım" };
 

@@ -13,6 +13,7 @@ import {
   visitorSheet,
   insertVisitor,
   backfillVisitorPeople,
+  detachVisitFromPerson,
 } from "../lib/visitors.js";
 
 function sendSheet(res, filename, sheetName, headers, rows, format) {
@@ -318,6 +319,33 @@ router.delete("/keys/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+router.get("/contacts", async (_req, res) => {
+  const { rows } = await query(`SELECT * FROM contacts ORDER BY name`);
+  res.json({ items: rows });
+});
+
+router.post("/contacts", async (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Ad gerekli" });
+  const { rows } = await query(
+    `INSERT INTO contacts (name, title, phone, unit) VALUES ($1,$2,$3,$4) RETURNING *`,
+    [
+      name,
+      String(req.body?.title || "").trim() || null,
+      String(req.body?.phone || "").trim() || null,
+      String(req.body?.unit || "").trim() || null,
+    ]
+  );
+  await writeLog(req, "Rehber eklendi", name);
+  res.json({ item: rows[0] });
+});
+
+router.delete("/contacts/:id", async (req, res) => {
+  await query(`DELETE FROM contacts WHERE id=$1`, [req.params.id]);
+  await writeLog(req, "Rehber silindi", req.params.id);
+  res.json({ ok: true });
+});
+
 router.get("/logs", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 200, 1000);
   const { rows } = await query(
@@ -516,10 +544,25 @@ router.post("/visitors/import", async (req, res) => {
 });
 
 router.delete("/visitors/:id", async (req, res) => {
-  const { rows } = await query(`DELETE FROM visitors WHERE id=$1 RETURNING full_name, record_no`, [
+  const cur = await query(`SELECT * FROM visitors WHERE id=$1`, [req.params.id]);
+  if (!cur.rows[0]) return res.status(404).json({ error: "Kayıt bulunamadı" });
+  const v = cur.rows[0];
+  await query(`UPDATE visitor_alerts SET matched_visitor_id = NULL WHERE matched_visitor_id = $1`, [
     req.params.id,
   ]);
-  await writeLog(req, "Ziyaretçi silindi", rows[0]?.record_no || rows[0]?.full_name);
+  const at = v.created_at || v.entered_at || new Date();
+  await query(`DELETE FROM movements WHERE visitor_id = $1`, [req.params.id]);
+  await query(
+    `DELETE FROM movements
+     WHERE visitor_id IS NULL
+       AND person_name = $1
+       AND COALESCE(plate,'') = COALESCE($2,'')
+       AND created_at BETWEEN ($3::timestamptz - INTERVAL '30 minutes') AND ($3::timestamptz + INTERVAL '30 minutes')`,
+    [v.full_name, v.plate || null, at]
+  );
+  await query(`DELETE FROM visitors WHERE id=$1`, [req.params.id]);
+  await detachVisitFromPerson(v);
+  await writeLog(req, "Ziyaretçi silindi", v.record_no || v.full_name);
   res.json({ ok: true });
 });
 

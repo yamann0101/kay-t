@@ -155,6 +155,7 @@ function showView(name) {
       bindAlertMatchLive();
     }
   }
+  if (name === "bulk-exit") loadBulkExitPage();
   applyRoleUi();
 }
 
@@ -470,30 +471,39 @@ function openNoteSheet(kind) {
       <input name="title" value="${isCargo ? "Kargo" : "Not"}" required />
       <label>Açıklama</label>
       <textarea name="body" rows="3" placeholder="Detay yazın"></textarea>
-      <label>Fotoğraf
-        <input type="file" id="notePhoto" accept="image/*" capture="environment" />
-      </label>
+      <label>Fotoğraf</label>
+      <div class="note-photo-acts">
+        <label class="vis-act note-pick">Galeriden seç
+          <input type="file" id="notePhotoGallery" accept="image/*" hidden />
+        </label>
+        <label class="vis-act note-pick">Kamera
+          <input type="file" id="notePhotoCam" accept="image/*" capture="environment" hidden />
+        </label>
+      </div>
       <img id="notePhotoPrev" class="note-photo-prev hidden" alt="" />
       <button class="sheet-save" type="submit">Herkese Bildir</button>
     </form>`
   );
   let photoData = "";
-  const file = document.getElementById("notePhoto");
   const prev = document.getElementById("notePhotoPrev");
-  file?.addEventListener("change", () => {
-    const f = file.files?.[0];
-    if (!f) return;
-    if (f.size > 1_800_000) return toast("Fotoğraf 1.5MB altında olmalı");
-    const reader = new FileReader();
-    reader.onload = () => {
-      photoData = String(reader.result || "");
-      if (prev) {
-        prev.src = photoData;
-        prev.classList.remove("hidden");
-      }
-    };
-    reader.readAsDataURL(f);
-  });
+  const bindPhoto = (el) => {
+    el?.addEventListener("change", () => {
+      const f = el.files?.[0];
+      if (!f) return;
+      if (f.size > 1_800_000) return toast("Fotoğraf 1.5MB altında olmalı");
+      const reader = new FileReader();
+      reader.onload = () => {
+        photoData = String(reader.result || "");
+        if (prev) {
+          prev.src = photoData;
+          prev.classList.remove("hidden");
+        }
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+  bindPhoto(document.getElementById("notePhotoGallery"));
+  bindPhoto(document.getElementById("notePhotoCam"));
   document.getElementById("noteForm").onsubmit = async (e) => {
     e.preventDefault();
     if (isViewer()) return toast("İzleyici modunda işlem yapılamaz");
@@ -1450,25 +1460,38 @@ function canExitVisitor() {
 }
 
 async function openBulkExitSheet() {
+  showView("bulk-exit");
+  await loadBulkExitPage();
+}
+
+async function loadBulkExitPage() {
+  const box = document.getElementById("bulkExitList");
+  if (!box) return;
+  box.innerHTML = `<div class="dir-info"><span>Yükleniyor…</span></div>`;
   try {
     const { items } = await api("/api/app/visitors/inside-companies");
-    if (!items?.length) return toast("İçeride kimse yok");
-    window.__bulkCompanies = items;
-    openSheet(
-      "Toplu Çıkış",
-      `<div class="bulk-list">${items
-        .map(
-          (c, i) => `<div class="bulk-row">
-            <div><b>${escHtml(c.company)}</b><small>${c.n} kişi içeride</small></div>
-            <button type="button" class="btn-gold bulk-exit-btn" data-bulk-i="${i}">Çıkış Yap</button>
-          </div>`
-        )
-        .join("")}</div>`
-    );
-    document.querySelectorAll("[data-bulk-i]").forEach((b) => {
+    window.__bulkCompanies = items || [];
+    if (!items?.length) {
+      box.innerHTML = `<div class="dir-info"><span>İçeride kimse yok</span></div>`;
+      return;
+    }
+    box.innerHTML = items
+      .map(
+        (c, i) => `<div class="bulk-row">
+          <div><b>${escHtml(c.company)}</b><small>${c.n} kişi içeride</small></div>
+          ${
+            canWrite()
+              ? `<button type="button" class="btn-gold bulk-exit-btn" data-bulk-i="${i}">Çıkış Yap</button>`
+              : `<span class="act out">İzleyici</span>`
+          }
+        </div>`
+      )
+      .join("");
+    box.querySelectorAll("[data-bulk-i]").forEach((b) => {
       b.onclick = async (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
+        if (!canWrite()) return toast("İzleyici modunda işlem yok");
         const co = window.__bulkCompanies?.[Number(b.dataset.bulkI)];
         if (!co) return;
         if (!confirm(`${co.company} firmasındaki herkes çıkış yapsın mı?`)) return;
@@ -1478,16 +1501,16 @@ async function openBulkExitSheet() {
             body: { company: co.company },
           });
           toast(`${r.count || 0} kişi çıkış yaptı`);
-          closeSheet();
-          await refreshVisitors();
-          loadHome();
+          await loadBulkExitPage();
+          await refreshVisitors().catch(() => {});
+          loadHome().catch(() => {});
         } catch (err) {
           toast(err.message || "Toplu çıkış başarısız");
         }
       };
     });
   } catch (err) {
-    toast(err.message || "Liste alınamadı");
+    box.innerHTML = `<div class="dir-info"><span>${escHtml(err.message || "Liste alınamadı")}</span></div>`;
   }
 }
 
@@ -2812,7 +2835,9 @@ async function boot() {
   document.getElementById("openPasswordView")?.addEventListener("click", () => showView("password"));
   document.getElementById("bioAddBtn")?.addEventListener("click", registerWebAuthn);
   document.getElementById("bioRemoveBtn")?.addEventListener("click", removeWebAuthn);
-  document.getElementById("homeBulkExit")?.addEventListener("click", () => {
+  document.getElementById("homeBulkExit")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (isViewer()) return toast("İzleyici modunda işlem yok");
     openBulkExitSheet();
   });
@@ -2826,8 +2851,21 @@ async function boot() {
   });
   document.getElementById("chatFab")?.addEventListener("click", () => openChatPanel());
   document.getElementById("chatClose")?.addEventListener("click", () => closeChatPanel(true));
+  document.getElementById("chatCloseX")?.addEventListener("click", () => closeChatPanel(true));
   document.getElementById("chatSettingsBtn")?.addEventListener("click", () => openChatSettings());
   document.getElementById("chatSettingsSave")?.addEventListener("click", () => saveChatSettings());
+  document.getElementById("chatClearAll")?.addEventListener("click", async () => {
+    if (window.currentUser?.role !== "admin") return;
+    if (!confirm("Tüm sohbet mesajları silinsin mi?")) return;
+    try {
+      await api("/api/app/chat", { method: "DELETE" });
+      toast("Sohbet temizlendi");
+      document.getElementById("chatSettings")?.classList.add("hidden");
+      loadChat();
+    } catch (err) {
+      toast(err.message || "Temizlenemedi");
+    }
+  });
   document.getElementById("notifReadAll")?.addEventListener("click", async () => {
     await loadNotifs({ markRead: true, all: true });
     toast("Tümü okundu");
@@ -2880,8 +2918,10 @@ function bindGlobalKeyboard() {
   const sync = () => {
     const vv = window.visualViewport;
     const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    document.documentElement.style.setProperty("--kb", `${inset}px`);
+    // Klavye üstüne navbar çıkmasın — --kb ile tabbar yükseltme
+    document.documentElement.style.setProperty("--kb", "0px");
     document.documentElement.classList.toggle("kb-open", inset > 80);
+    document.querySelector(".app-root")?.classList.toggle("kb-open-root", inset > 80);
   };
   window.visualViewport.addEventListener("resize", sync);
   window.visualViewport.addEventListener("scroll", sync);
@@ -3007,6 +3047,11 @@ async function saveProfile(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const body = Object.fromEntries(fd.entries());
+  // Boş alanlar Postgres'teki mevcut değeri silmesin
+  for (const k of Object.keys(body)) {
+    if (body[k] === "" || body[k] == null) delete body[k];
+  }
+  if (!body.photo_url) delete body.photo_url;
   try {
     const { user } = await api("/api/app/profile", { method: "PATCH", body });
     window.currentUser = user;
@@ -3145,7 +3190,13 @@ async function loadChat(opts = {}) {
         </div></div>
         ${!deleted && m.reply_body ? `<button type="button" class="reply-ref" data-jump="${m.reply_to || ""}">${escHtml(m.reply_user_name || "")}: ${escHtml(m.reply_body)}</button>` : ""}
         <div class="chat-body">${deleted ? "Bu mesaj silindi" : escHtml(m.body)}</div>
-        <div class="chat-meta">${fmtDateTime(m.created_at)}</div>
+        <div class="chat-meta">${fmtDateTime(m.created_at)}${
+          !deleted && Array.isArray(m.seen_by) && m.seen_by.filter((n) => n && n !== m.user_name).length
+            ? `<span class="chat-seen"> · Görüldü: ${escHtml(m.seen_by.filter((n) => n && n !== m.user_name).join(", "))}</span>`
+            : !deleted && mine
+              ? `<span class="chat-seen"> · Görülmedi</span>`
+              : ""
+        }</div>
         ${
           deleted
             ? ""
@@ -3185,6 +3236,23 @@ async function loadChat(opts = {}) {
   });
   bindChatSwipe(box);
   if (!opts.silent) box.scrollTop = box.scrollHeight;
+  // Alta indi = tüm mesajları gördü
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 48;
+  if (window.chatOpen && (atBottom || !opts.silent)) {
+    const ids = items.filter((m) => !m.deleted_at).map((m) => m.id);
+    if (ids.length) {
+      api("/api/app/chat/read", { method: "POST", body: { message_ids: ids } }).catch(() => {});
+    }
+  }
+  if (!box.dataset.seenScrollBound) {
+    box.dataset.seenScrollBound = "1";
+    box.addEventListener("scroll", () => {
+      if (!window.chatOpen) return;
+      if (box.scrollHeight - box.scrollTop - box.clientHeight > 40) return;
+      const ids = [...box.querySelectorAll("[data-mid]")].map((el) => el.dataset.mid).filter(Boolean);
+      if (ids.length) api("/api/app/chat/read", { method: "POST", body: { message_ids: ids } }).catch(() => {});
+    });
+  }
 }
 
 async function openChatSettings() {
@@ -3192,6 +3260,8 @@ async function openChatSettings() {
   if (!box) return;
   box.classList.toggle("hidden");
   if (box.classList.contains("hidden")) return;
+  const clearBtn = document.getElementById("chatClearAll");
+  if (clearBtn) clearBtn.classList.toggle("hidden", window.currentUser?.role !== "admin");
   if (window.currentUser?.role !== "admin") {
     document.getElementById("chatManagersOnlyRow").style.display = "none";
     document.getElementById("chatManagerList").innerHTML =

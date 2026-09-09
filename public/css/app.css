@@ -351,7 +351,7 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   background: linear-gradient(180deg, #141414, #0c0c0c);
   flex-shrink: 0;
 }
-.chat-panel-back, .chat-panel-gear {
+.chat-panel-back, .chat-panel-gear, .chat-panel-x {
   width: 36px;
   height: 36px;
   border-radius: 10px;
@@ -359,11 +359,33 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   place-items: center;
   color: var(--gold-2);
   background: rgba(255,255,255,0.04);
+  flex-shrink: 0;
+}
+.chat-panel-x {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+  color: #f3f3f3;
 }
 .chat-panel-back svg, .chat-panel-gear svg { width: 18px; height: 18px; }
 .chat-panel-title { flex: 1; min-width: 0; }
 .chat-panel-title b { display: block; font-size: 15px; }
 .chat-panel-title small { color: #999; font-size: 11px; }
+.chat-seen { color: #888; font-size: 10px; }
+.note-photo-acts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.note-pick {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 12px;
+}
 .chat-settings {
   padding: 10px 12px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -730,7 +752,16 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   align-items: center;
   gap: 8px;
   box-shadow: 0 0 10px rgba(212,168,63,0.08);
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
+.qcard-bulk {
+  border-color: rgba(230,185,79,0.75);
+  background: linear-gradient(180deg, rgba(230,185,79,0.18), #0d0d0d);
+}
+.qcard-bulk b { color: var(--gold-2); }
 .qcard svg { width: 18px; height: 18px; color: var(--gold-2); flex-shrink: 0; }
 .qcard div { min-width: 0; }
 .qcard b { display: block; font-size: 12px; line-height: 1.15; }
@@ -1922,18 +1953,18 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
 }
 .vis-type-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
   overflow: visible;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .vis-pill {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 9px;
+  gap: 3px;
+  height: 26px;
+  padding: 0 8px;
   border-radius: 999px;
   background: #121212;
   border: 1px solid rgba(255,255,255,0.08);
@@ -1943,58 +1974,61 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
 }
 .vis-type-grid .vis-pill {
   height: auto;
-  min-height: 64px;
-  border-radius: 14px;
-  padding: 8px 4px 7px;
+  min-height: 0;
+  border-radius: 8px;
+  padding: 4px 2px 3px;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 0;
   background: #121212;
   border: 1px solid rgba(255,255,255,0.07);
 }
-.vis-type-grid .vis-pill svg { width: 18px; height: 18px; }
+.vis-type-grid .vis-pill svg { width: 12px; height: 12px; }
 .vis-type-grid .vis-pill b {
   display: block;
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.05;
 }
 .vis-type-grid .vis-pill em {
   font-style: normal;
-  font-size: 9px;
+  font-size: 7.5px;
   font-weight: 700;
   color: #cfcfcf;
 }
-.vis-pill svg { width: 14px; height: 14px; }
+.vis-pill svg { width: 12px; height: 12px; }
 .vis-pill.active {
   background: linear-gradient(180deg, #ffe08a 0%, #d6a63c 100%);
   color: #111;
   border-color: transparent;
-  box-shadow: 0 6px 14px rgba(214,166,60,0.32);
+  box-shadow: none;
 }
 .vis-type-grid .vis-pill.active em { color: #3a2a08; }
 .vis-filters {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
-  gap: 6px;
-  margin-bottom: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  margin-bottom: 6px;
 }
 .vis-chip {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  height: 32px;
-  border-radius: 10px;
+  gap: 2px;
+  height: 26px;
+  min-width: 0;
+  border-radius: 7px;
   background: #121212;
   border: 1px solid rgba(255,255,255,0.08);
   color: #ddd;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   overflow: hidden;
+  padding: 0 2px;
 }
-.vis-chip svg { width: 12px; height: 12px; color: var(--gold-2); }
+.vis-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vis-chip svg { width: 10px; height: 10px; color: var(--gold-2); flex-shrink: 0; }
 .vis-chip input, .vis-chip select {
   position: absolute;
   inset: 0;
@@ -2005,35 +2039,26 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
 
 .vis-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   margin-bottom: 8px;
 }
 .vis-stat {
   cursor: pointer;
-  text-align: left;
-  padding: 5px 6px 5px;
-  border-radius: 9px;
+  text-align: center;
+  padding: 4px 2px;
+  border-radius: 8px;
   background: #101010;
   border: 1px solid rgba(255,255,255,0.06);
   position: relative;
   overflow: hidden;
   width: 100%;
+  min-height: 0;
 }
-.vis-stat::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 14%;
-  bottom: 14%;
-  width: 2px;
-  border-radius: 99px;
-  background: currentColor;
-  opacity: 0.8;
-}
-.vis-stat svg { width: 12px; height: 12px; margin: 0 0 2px; display: block; }
-.vis-stat b { display: block; font-size: 13px; font-weight: 800; line-height: 1; }
-.vis-stat span { font-size: 8px; color: #aaa; font-weight: 600; letter-spacing: 0.01em; }
+.vis-stat::before { display: none; }
+.vis-stat svg { width: 11px; height: 11px; margin: 0 auto 1px; display: block; }
+.vis-stat b { display: block; font-size: 12px; font-weight: 800; line-height: 1; }
+.vis-stat span { font-size: 7.5px; color: #aaa; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
 .vis-stat.in { color: #4ade80; box-shadow: none; }
 .vis-stat.today { color: #60a5fa; box-shadow: none; }
 .vis-stat.car { color: #facc15; box-shadow: none; }
@@ -2624,15 +2649,40 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   width: 100%;
 }
 html.kb-open .tabbar {
-  opacity: 0;
+  /* Kayıt ekranında navbar aşağıda kalsın — klavye üstüne çıkmasın / yukarı kaymasın */
+  opacity: 1;
   pointer-events: none;
-  transform: translateY(110%);
-  transition: transform 0.18s ease, opacity 0.18s ease;
+  transform: none;
+}
+html.kb-open.app-root-kb .tabbar,
+.app-root.reg-mode ~ .tabbar,
+.app-root.reg-mode .tabbar {
+  opacity: 1 !important;
+  transform: none !important;
+  pointer-events: none;
 }
 html.kb-open .chat-fab,
 html.kb-open #chatFab {
   opacity: 0;
   pointer-events: none;
+}
+/* Kayıt modunda tabbar sabit altta */
+.app-root.reg-mode .tabbar {
+  position: fixed;
+  left: max(8px, env(safe-area-inset-left, 0px));
+  right: max(8px, env(safe-area-inset-right, 0px));
+  bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  z-index: 99999;
+}
+.app-root.reg-mode .app-scroll {
+  padding-bottom: calc(var(--tabbar-h) + var(--fab-rise) + 16px);
+}
+.app-root.reg-mode.kb-open-root .tabbar,
+html.kb-open .app-root.reg-mode .tabbar {
+  bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  transform: none !important;
+  opacity: 1 !important;
 }
 .bulk-list { display: grid; gap: 10px; }
 .bulk-row {

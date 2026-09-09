@@ -68,9 +68,9 @@ router.get("/summary", async (_req, res) => {
     todayKargo,
     todayYemek,
   ] = await Promise.all([
-    query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='giris'`),
-    query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='giris' AND ${SQL_TR_MONTH}`),
-    query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='giris' AND ${SQL_TR_TODAY}`),
+    query(`SELECT COUNT(*)::int AS n FROM visitors`),
+    query(`SELECT COUNT(*)::int AS n FROM visitors WHERE ${SQL_TR_MONTH}`),
+    query(`SELECT COUNT(*)::int AS n FROM visitors WHERE ${SQL_TR_TODAY}`),
     typeCount("sevkiyat", SQL_TR_MONTH),
     typeCount("gorusme", SQL_TR_MONTH),
     typeCount("calisma", SQL_TR_MONTH),
@@ -421,9 +421,9 @@ router.post("/visitors/:id/exit", async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: "Kayıt bulunamadı veya zaten çıkış yapılmış" });
   await query(
-    `INSERT INTO movements (direction, person_name, category, plate, created_by)
-     VALUES ('cikis', $1, $2, $3, $4)`,
-    [rows[0].full_name, rows[0].category, rows[0].plate, req.user.id]
+    `INSERT INTO movements (direction, person_name, category, plate, created_by, visitor_id)
+     VALUES ('cikis', $1, $2, $3, $4, $5)`,
+    [rows[0].full_name, rows[0].category, rows[0].plate, req.user.id, rows[0].id]
   );
   await writeLog(req, "Ziyaretçi çıkış", `${rows[0].full_name}`);
   res.json({ item: rows[0] });
@@ -453,9 +453,9 @@ router.post("/visitors/bulk-exit", async (req, res) => {
     );
     if (rows[0]) {
       await query(
-        `INSERT INTO movements (direction, person_name, category, plate, created_by)
-         VALUES ('cikis', $1, $2, $3, $4)`,
-        [rows[0].full_name, rows[0].category, rows[0].plate, req.user.id]
+        `INSERT INTO movements (direction, person_name, category, plate, created_by, visitor_id)
+         VALUES ('cikis', $1, $2, $3, $4, $5)`,
+        [rows[0].full_name, rows[0].category, rows[0].plate, req.user.id, rows[0].id]
       );
       out.push(rows[0]);
     }
@@ -564,12 +564,15 @@ router.delete("/visitors/:id", async (req, res) => {
   await query(`UPDATE visitor_alerts SET matched_visitor_id = NULL WHERE matched_visitor_id = $1`, [
     req.params.id,
   ]);
+  const at = v.created_at || v.entered_at || new Date();
+  await query(`DELETE FROM movements WHERE visitor_id = $1`, [req.params.id]);
   await query(
     `DELETE FROM movements
-     WHERE person_name = $1
+     WHERE visitor_id IS NULL
+       AND person_name = $1
        AND COALESCE(plate,'') = COALESCE($2,'')
-       AND created_at BETWEEN ($3::timestamptz - INTERVAL '3 minutes') AND ($3::timestamptz + INTERVAL '3 minutes')`,
-    [v.full_name, v.plate || null, v.created_at || v.entered_at || new Date()]
+       AND created_at BETWEEN ($3::timestamptz - INTERVAL '30 minutes') AND ($3::timestamptz + INTERVAL '30 minutes')`,
+    [v.full_name, v.plate || null, at]
   );
   await query(`DELETE FROM visitors WHERE id=$1`, [req.params.id]);
   // Diğer geçmiş ziyaretler kalsın; sadece bu kaydı kişi özetinden düş
@@ -832,6 +835,28 @@ router.get("/contacts", async (_req, res) => {
   res.json({ items: rows });
 });
 
+router.post("/contacts", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Yönetici gerekli" });
+  const name = String(req.body?.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Ad gerekli" });
+  const { rows } = await query(
+    `INSERT INTO contacts (name, title, phone, unit) VALUES ($1,$2,$3,$4) RETURNING *`,
+    [
+      name,
+      String(req.body?.title || "").trim() || null,
+      String(req.body?.phone || "").trim() || null,
+      String(req.body?.unit || "").trim() || null,
+    ]
+  );
+  res.json({ item: rows[0] });
+});
+
+router.delete("/contacts/:id", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Yönetici gerekli" });
+  await query(`DELETE FROM contacts WHERE id=$1`, [req.params.id]);
+  res.json({ ok: true });
+});
+
 router.post("/push/subscribe", async (req, res) => {
   const sub = req.body || {};
   if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
@@ -936,22 +961,27 @@ router.get("/profile", async (req, res) => {
 
 router.patch("/profile", async (req, res) => {
   const b = req.body || {};
+  const emptyToNull = (v) => {
+    if (v === undefined || v === null) return null;
+    const s = String(v).trim();
+    return s === "" ? null : s;
+  };
   const { rows } = await query(
     `UPDATE users SET
        full_name = COALESCE(NULLIF($2,''), full_name),
-       phone = COALESCE($3, phone),
-       gender = COALESCE($4, gender),
-       armed = COALESCE($5, armed),
-       id_no = COALESCE($6, id_no),
-       photo_url = COALESCE($7, photo_url),
-       shoe_size = COALESCE($8, shoe_size),
-       pants_size = COALESCE($9, pants_size),
-       shirt_size = COALESCE($10, shirt_size),
-       coat_size = COALESCE($11, coat_size),
-       sweater_size = COALESCE($12, sweater_size),
+       phone = COALESCE(NULLIF($3,''), phone),
+       gender = COALESCE(NULLIF($4,''), gender),
+       armed = COALESCE(NULLIF($5,''), armed),
+       id_no = COALESCE(NULLIF($6,''), id_no),
+       photo_url = COALESCE(NULLIF($7,''), photo_url),
+       shoe_size = COALESCE(NULLIF($8,''), shoe_size),
+       pants_size = COALESCE(NULLIF($9,''), pants_size),
+       shirt_size = COALESCE(NULLIF($10,''), shirt_size),
+       coat_size = COALESCE(NULLIF($11,''), coat_size),
+       sweater_size = COALESCE(NULLIF($12,''), sweater_size),
        start_date = COALESCE($13::date, start_date),
-       blood_type = COALESCE($14, blood_type),
-       marital_status = COALESCE($15, marital_status),
+       blood_type = COALESCE(NULLIF($14,''), blood_type),
+       marital_status = COALESCE(NULLIF($15,''), marital_status),
        updated_at = NOW()
      WHERE id = $1
      RETURNING id, username, full_name, role, phone, active, gender, armed, id_no, photo_url,
@@ -960,19 +990,19 @@ router.patch("/profile", async (req, res) => {
     [
       req.user.id,
       String(b.full_name || "").trim(),
-      b.phone ?? null,
-      b.gender ?? null,
-      b.armed ?? null,
-      b.id_no ?? null,
-      b.photo_url ?? null,
-      b.shoe_size ?? null,
-      b.pants_size ?? null,
-      b.shirt_size ?? null,
-      b.coat_size ?? null,
-      b.sweater_size ?? null,
-      b.start_date || null,
-      b.blood_type ?? null,
-      b.marital_status ?? null,
+      emptyToNull(b.phone),
+      emptyToNull(b.gender),
+      emptyToNull(b.armed),
+      emptyToNull(b.id_no),
+      emptyToNull(b.photo_url),
+      emptyToNull(b.shoe_size),
+      emptyToNull(b.pants_size),
+      emptyToNull(b.shirt_size),
+      emptyToNull(b.coat_size),
+      emptyToNull(b.sweater_size),
+      emptyToNull(b.start_date),
+      emptyToNull(b.blood_type),
+      emptyToNull(b.marital_status),
     ]
   );
   const title = rows[0]?.title_id
@@ -1047,13 +1077,61 @@ router.get("/chat", async (req, res) => {
      ORDER BY m.created_at DESC
      LIMIT 120`
   );
+  const ids = rows.map((r) => r.id);
+  let readsByMsg = {};
+  if (ids.length) {
+    const { rows: reads } = await query(
+      `SELECT cr.message_id, u.full_name
+       FROM chat_reads cr
+       JOIN users u ON u.id = cr.user_id
+       WHERE cr.message_id = ANY($1::uuid[])
+       ORDER BY cr.read_at`,
+      [ids]
+    );
+    for (const r of reads) {
+      const k = r.message_id;
+      if (!readsByMsg[k]) readsByMsg[k] = [];
+      readsByMsg[k].push(r.full_name);
+    }
+  }
+  const items = rows.reverse().map((m) => ({
+    ...m,
+    seen_by: readsByMsg[m.id] || [],
+  }));
   const settings = await query(`SELECT value FROM settings WHERE key='chat_managers_only'`);
   const managersOnly = settings.rows[0]?.value === "1" || settings.rows[0]?.value === "true";
   res.json({
-    items: rows.reverse(),
+    items,
     managers_only: managersOnly,
     can_post: canPostChat(req.user, managersOnly),
   });
+});
+
+router.post("/chat/read", async (req, res) => {
+  const ids = Array.isArray(req.body?.message_ids) ? req.body.message_ids.filter(Boolean) : [];
+  if (!ids.length) return res.json({ ok: true, n: 0 });
+  let n = 0;
+  for (const id of ids) {
+    try {
+      await query(
+        `INSERT INTO chat_reads (message_id, user_id) VALUES ($1,$2)
+         ON CONFLICT (message_id, user_id) DO UPDATE SET read_at = NOW()`,
+        [id, req.user.id]
+      );
+      n += 1;
+    } catch {
+      /* ignore invalid ids */
+    }
+  }
+  res.json({ ok: true, n });
+});
+
+router.delete("/chat", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Yönetici gerekli" });
+  await query(`DELETE FROM chat_reads`);
+  await query(`DELETE FROM chat_messages`);
+  await writeLog(req, "Sohbet temizlendi", "Tüm mesajlar silindi");
+  res.json({ ok: true });
 });
 
 function canPostChat(user, managersOnly) {

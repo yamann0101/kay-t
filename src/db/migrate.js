@@ -6,7 +6,7 @@ import { backfillVisitorPeople } from "../lib/visitors.js";
 import { DEFAULT_COPY, DEFAULT_SHIFT } from "../lib/appSettings.js";
 
 /** Şema sürümü: her yapısal değişiklikte artır. Seed tekrarlanmaz. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 10;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -168,72 +168,27 @@ async function seedIfEmpty() {
   await query(
     `INSERT INTO keys (code, name, location, status) VALUES
      ('A-01', 'Ana Giriş', 'Turnike 1', 'available'),
-     ('A-02', 'Depo Kapısı', 'B Blok', 'available'),
-     ('A-03', 'Jeneratör Odası', 'Teknik Mahal', 'taken'),
-     ('B-12', 'Çatı Girişi', 'Çatı', 'available')`
+     ('A-02', 'Depo Kapısı', 'B Blok', 'available')`
   );
 
-  await query(`UPDATE keys SET holder_id = $1 WHERE code = 'A-03'`, [guardId]);
+  await query(`UPDATE keys SET holder_id = NULL`);
 
-  await query(
-    `INSERT INTO movements (direction, person_name, category, created_by, created_at) VALUES
-     ('giris', 'Ahmet Kaya', 'Ziyaretçi', $1, NOW() - INTERVAL '13 minutes'),
-     ('cikis', 'Mehmet Demir', 'Personel', $1, NOW() - INTERVAL '18 minutes'),
-     ('giris', '34 ABC 123', 'Tedarikçi', $1, NOW() - INTERVAL '31 minutes'),
-     ('cikis', 'Elif Yıldız', 'Ziyaretçi', $1, NOW() - INTERVAL '41 minutes'),
-     ('giris', 'Can Özkan', 'Personel', $1, NOW() - INTERVAL '56 minutes')`,
-    [guardId]
-  );
-
-  await query(
-    `INSERT INTO visitors (full_name, company, host, category, entered_at, created_by) VALUES
-     ('Ahmet Kaya', 'Kaya İnşaat', 'İdari İşler', 'Ziyaretçi', NOW() - INTERVAL '13 minutes', $1),
-     ('Elif Yıldız', 'Nova Lojistik', 'Satın Alma', 'Ziyaretçi', NOW() - INTERVAL '2 hours', $1)`,
-    [guardId]
-  );
-
-  await query(
-    `INSERT INTO meetings (title, visitor) VALUES
-     ('İdari görüşme', 'Ahmet Kaya'),
-     ('Tedarikçi teslim', '34 ABC 123'),
-     ('Personel brifing', NULL),
-     ('Güvenlik toplantısı', NULL)`
-  );
-
-  await query(
-    `INSERT INTO shipments (title, status) VALUES
-     ('Kargo — Yurtiçi', 'open'),
-     ('Tedarikçi sevkiyat', 'open'),
-     ('Evrak kurye', 'closed')`
-  );
-
+  // Örnek ziyaretçi / hareket eklenmez — sayaçlar boş başlar
   await query(
     `INSERT INTO announcements (title, body, created_by) VALUES
-     ('Gece vardiyası', 'Gece vardiyasında depo kapısı kilitli tutulacak.', $1),
-     ('Yangın tatbikatı', 'Cuma 14:00 yangın tatbikatı yapılacaktır.', $1)`,
+     ('Gece vardiyası', 'Gece vardiyasında depo kapısı kilitli tutulacak.', $1)`,
     [adminId]
-  );
-
-  await query(
-    `INSERT INTO patrols (name, checkpoint, status) VALUES
-     ('Çevre 1', 'Ana Giriş', 'pending'),
-     ('Çevre 2', 'Otopark', 'pending'),
-     ('İç hat', 'B Blok koridor', 'done'),
-     ('Çatı', 'Çatı kapısı', 'pending')`
   );
 
   await query(
     `INSERT INTO contacts (name, title, phone, unit) VALUES
      ('Erhan YAMAN', 'Görevli Güvenlik', '0555 111 22 33', 'Saha'),
-     ('Sistem Yöneticisi', 'Yönetici', '0555 000 00 01', 'Merkez'),
-     ('İtfaiye', 'Acil', '110', 'Acil'),
-     ('Polis', 'Acil', '155', 'Acil'),
-     ('Ambulans', 'Acil', '112', 'Acil')`
+     ('Sistem Yöneticisi', 'Yönetici', '0555 000 00 01', 'Merkez')`
   );
 
   await query(
     `INSERT INTO activity_logs (user_id, action, detail) VALUES
-     ($1, 'Sistem kuruldu', 'İlk kurulum ve örnek veriler oluşturuldu'),
+     ($1, 'Sistem kuruldu', 'İlk kurulum tamamlandı'),
      ($2, 'Giriş', 'Saha görevlisi hesabı hazır')`,
     [adminId, guardId]
   );
@@ -362,31 +317,33 @@ export async function migrate() {
      ON CONFLICT (key) DO NOTHING`,
     [JSON.stringify(DEFAULT_COPY)]
   );
-  const extraPeople = [
-    ["Ahmet Kara", "Proje Müdürü", "0555 200 00 01", "Yönetim"],
-    ["Selin Aydın", "İdari İşler", "0555 200 00 02", "Yönetim"],
-    ["Mehmet Demir", "Vardiya Amiri", "0555 300 00 01", "Güvenlik"],
-    ["Can Özkan", "Teknik Sorumlu", "0555 400 00 01", "Teknik"],
-    ["Fatma Kılıç", "Temizlik Amiri", "0555 500 00 01", "Temizlik"],
-    ["Kaya İnşaat", "Taşeron Yetkili", "0555 600 00 01", "Taşeron"],
-    ["ABC Lojistik", "Sevkiyat Sorumlusu", "0555 700 00 01", "Tedarikçi"],
-    ["Site Kuralları", "Talimat / Form", "", "Bilgi"],
-  ];
+  const extraPeople = [];
   for (const row of extraPeople) {
     const found = await query(`SELECT 1 FROM contacts WHERE name = $1`, [row[0]]);
     if (!found.rows.length) {
       await query(`INSERT INTO contacts (name, title, phone, unit) VALUES ($1,$2,$3,$4)`, row);
     }
   }
+  // v9: fazla örnek rehber / anahtar temizliği — yalnızca bir kez
+  const cleanupFlag = await query(`SELECT value FROM settings WHERE key='seed_cleanup_v9'`);
+  if (cleanupFlag.rows[0]?.value !== "1") {
+    await query(
+      `DELETE FROM contacts WHERE name NOT IN ('Erhan YAMAN', 'Sistem Yöneticisi')`
+    );
+    await query(`DELETE FROM keys WHERE code NOT IN ('A-01', 'A-02')`);
+    await query(
+      `DELETE FROM key_sections WHERE name NOT IN ('Ofisler', 'Depo', 'Diğer')
+       AND NOT EXISTS (SELECT 1 FROM keys k WHERE k.section_id = key_sections.id)`
+    );
+    await query(
+      `INSERT INTO settings (key, value) VALUES ('seed_cleanup_v9', '1')
+       ON CONFLICT (key) DO UPDATE SET value = '1'`
+    );
+  }
   const sectionSeed = [
-    ["Üretim", 1],
-    ["Ofisler", 2],
-    ["Sistem", 3],
-    ["Depo", 4],
-    ["Elektrik", 5],
-    ["Teknik Alan", 6],
-    ["Araç", 7],
-    ["Diğer", 8],
+    ["Ofisler", 1],
+    ["Depo", 2],
+    ["Diğer", 3],
   ];
   for (const [name, order] of sectionSeed) {
     await query(
@@ -396,23 +353,10 @@ export async function migrate() {
   }
   const { rows: secs } = await query(`SELECT id, name FROM key_sections`);
   const byName = Object.fromEntries(secs.map((s) => [s.name, s.id]));
-  await query(`UPDATE keys SET section_id = $1 WHERE section_id IS NULL AND (location ILIKE '%depo%' OR name ILIKE '%depo%')`, [byName["Depo"] || null]);
-  await query(`UPDATE keys SET section_id = $1 WHERE section_id IS NULL AND (name ILIKE '%jeneratör%' OR name ILIKE '%teknik%' OR location ILIKE '%teknik%')`, [byName["Teknik Alan"] || null]);
-  await query(`UPDATE keys SET section_id = $1 WHERE section_id IS NULL AND name ILIKE '%çatı%'`, [byName["Diğer"] || null]);
-  await query(`UPDATE keys SET section_id = $1 WHERE section_id IS NULL`, [byName["Ofisler"] || byName["Diğer"] || null]);
-  const extraKeys = [
-    ["Ü-1", "Üretim Alanı - Ana Giriş", "Üretim", "available", true],
-    ["Ü-2", "Üretim - Yan Kapı", "Üretim", "taken", false],
-    ["Ü-3", "Montaj Hattı", "Üretim", "available", false],
-    ["O-1", "Yönetim Ofisi", "Ofisler", "available", true],
-    ["O-2", "Muhasebe", "Ofisler", "taken", false],
-    ["S-1", "Sunucu Odası", "Sistem", "available", true],
-    ["S-2", "Kamera Odası", "Sistem", "available", false],
-    ["D-1", "Ana Depo", "Depo", "taken", false],
-    ["E-1", "Elektrik Panosu", "Elektrik", "available", false],
-    ["T-1", "Teknik Mahal", "Teknik Alan", "lost", false],
-    ["AR-1", "Servis Aracı", "Araç", "available", false],
-  ];
+  await query(`UPDATE keys SET section_id = $1 WHERE code = 'A-01'`, [byName["Ofisler"] || null]);
+  await query(`UPDATE keys SET section_id = $1 WHERE code = 'A-02'`, [byName["Depo"] || null]);
+  await query(`UPDATE keys SET pinned = TRUE WHERE code = 'A-01'`);
+  const extraKeys = [];
   for (const [code, name, section, status, pinned] of extraKeys) {
     await query(
       `INSERT INTO keys (code, name, location, status, section_id, pinned)
@@ -420,7 +364,6 @@ export async function migrate() {
       [code, name, section, status, byName[section] || null, pinned]
     );
   }
-  await query(`UPDATE keys SET pinned = TRUE WHERE code IN ('A-01','Ü-1','O-1','S-1')`);
 
   await exec(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT;
@@ -484,7 +427,46 @@ export async function migrate() {
       created_by UUID REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS chat_reads (
+      message_id UUID NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (message_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_reads_user ON chat_reads(user_id, read_at DESC);
+    ALTER TABLE movements ADD COLUMN IF NOT EXISTS visitor_id UUID REFERENCES visitors(id) ON DELETE CASCADE;
+    CREATE INDEX IF NOT EXISTS idx_movements_visitor ON movements(visitor_id);
   `);
+
+  // v10: örnek ziyaretçi/hareket temizliği + yetim hareketler (sayaç ziyaretçiden)
+  const cleanupV10 = await query(`SELECT value FROM settings WHERE key='seed_cleanup_v10'`);
+  if (cleanupV10.rows[0]?.value !== "1") {
+    await query(
+      `DELETE FROM visitors
+       WHERE full_name ILIKE 'Ahmet Kaya'
+          OR company ILIKE 'Kaya İnşaat%'
+          OR host ILIKE 'İdari İşler'`
+    );
+    await query(
+      `DELETE FROM movements
+       WHERE person_name ILIKE 'Ahmet Kaya'
+          OR person_name ILIKE 'Mehmet Demir'
+          OR visitor_id IS NULL`
+    );
+    await query(
+      `DELETE FROM visitor_people p
+       WHERE NOT EXISTS (SELECT 1 FROM visitors v WHERE v.person_id = p.id)
+          OR full_name ILIKE 'Ahmet Kaya'`
+    );
+    await query(`DELETE FROM meetings WHERE visitor ILIKE 'Ahmet Kaya' OR title ILIKE 'İdari görüşme' OR title ILIKE 'Güvenlik toplantısı'`);
+    await query(`DELETE FROM shipments WHERE title ILIKE 'Kargo — Yurtiçi' OR title ILIKE 'Evrak kurye'`);
+    await query(`DELETE FROM patrols WHERE name IN ('Çevre 1', 'İç hat')`);
+    await query(
+      `INSERT INTO settings (key, value) VALUES ('seed_cleanup_v10', '1')
+       ON CONFLICT (key) DO UPDATE SET value = '1'`
+    );
+  }
+
   await query(
     `INSERT INTO job_titles (name, sort_order) VALUES
       ('Güvenlik Amiri', 1),

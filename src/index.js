@@ -3,6 +3,7 @@ import express from "express";
 import helmet from "helmet";
 import compression from "compression";
 import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
 import { config } from "./config.js";
 import { connectDatabase, waitForDb, getDbKind } from "./db/pool.js";
 import { bootstrapDatabase } from "./db/bootstrap.js";
@@ -53,7 +54,18 @@ app.use("/api/auth", authRoutes);
 app.use("/api/app", appRoutes);
 app.use("/api/admin", authRequired, adminRoutes);
 
-app.get("/", (_req, res) => res.sendFile(path.join(publicDir, "login.html")));
+app.get("/", (req, res) => {
+  const token = req.cookies?.[config.cookieName];
+  if (token) {
+    try {
+      jwt.verify(token, config.jwtSecret);
+      return res.redirect(302, "/app");
+    } catch {
+      /* oturum yok → login */
+    }
+  }
+  res.sendFile(path.join(publicDir, "login.html"));
+});
 app.get("/app", (_req, res) => res.sendFile(path.join(publicDir, "app.html")));
 app.get("/admin", (_req, res) => res.sendFile(path.join(publicDir, "admin.html")));
 

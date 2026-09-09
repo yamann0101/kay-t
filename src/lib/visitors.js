@@ -162,15 +162,15 @@ export async function insertVisitor(userId, body, fields, opts = {}) {
 
   if (!opts.skipMovement) {
     await query(
-      `INSERT INTO movements (direction, person_name, category, plate, created_by)
-       VALUES ('giris', $1, $2, $3, $4)`,
-      [name, cat, plateVal || null, userId || null]
+      `INSERT INTO movements (direction, person_name, category, plate, created_by, visitor_id)
+       VALUES ('giris', $1, $2, $3, $4, $5)`,
+      [name, cat, plateVal || null, userId || null, visit.id]
     );
     if (exited) {
       await query(
-        `INSERT INTO movements (direction, person_name, category, plate, created_by)
-         VALUES ('cikis', $1, $2, $3, $4)`,
-        [name, cat, plateVal || null, userId || null]
+        `INSERT INTO movements (direction, person_name, category, plate, created_by, visitor_id)
+         VALUES ('cikis', $1, $2, $3, $4, $5)`,
+        [name, cat, plateVal || null, userId || null, visit.id]
       );
     }
   }
@@ -335,8 +335,11 @@ export async function detachVisitFromPerson(visit) {
   if (!pid) return;
 
   const { rows: remaining } = await query(
-    `SELECT * FROM visitors WHERE person_id = $1 ORDER BY created_at DESC`,
-    [pid]
+    `SELECT * FROM visitors
+     WHERE person_id = $1
+        OR (person_id IS NULL AND lower(trim(full_name)) = lower(trim($2)))
+     ORDER BY created_at DESC`,
+    [pid, visit.full_name || ""]
   );
 
   if (!remaining.length) {

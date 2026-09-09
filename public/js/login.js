@@ -14,7 +14,7 @@ if (savedBoot?.u) $("username").value = savedBoot.u;
 fetch("/api/auth/me", { credentials: "include" })
   .then((r) => (r.ok ? r.json() : null))
   .then((d) => {
-    if (d?.user) location.href = "/app";
+    if (d?.user) location.replace("/app");
   })
   .catch(() => {});
 

@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
   <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,9 +14,9 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=54" />
-  <link rel="stylesheet" href="/css/app.css?v=54" />
-  <link rel="stylesheet" href="/css/login.css?v=54" />
+  <link rel="stylesheet" href="/css/tokens.css?v=57" />
+  <link rel="stylesheet" href="/css/app.css?v=57" />
+  <link rel="stylesheet" href="/css/login.css?v=57" />
   <script>
     try {
       var __v = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view");
@@ -114,7 +114,7 @@
           <h3>Hızlı Erişim</h3>
         </div>
         <div class="quick">
-          <button class="qcard mini write-only" type="button" id="homeBulkExit">
+          <button class="qcard mini write-only qcard-bulk" type="button" id="homeBulkExit" data-view="bulk-exit">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H3v-6"/><path d="M14 10L3 21"/><path d="M21 10V4a1 1 0 0 0-1-1H8"/></svg>
             <div><b>Toplu Çıkış</b><span>Firmaya göre</span></div>
           </button>
@@ -232,10 +232,10 @@
           </button>
         </div>
         <div class="vis-pills vis-type-grid" id="visPills"></div>
-        <div class="vis-filters hidden" id="visFilters">
+        <div class="vis-filters" id="visFilters">
           <label class="vis-chip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
-            <span>Tarih Seç</span>
+            <span>Tarih</span>
             <input type="date" id="visDate" />
           </label>
           <label class="vis-chip">
@@ -249,7 +249,7 @@
           <label class="vis-chip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 13l2-6h14l2 6"/><path d="M5 13h14v6H5z"/></svg>
             <select id="visEntry">
-              <option value="all">Giriş Şekli</option>
+              <option value="all">Giriş</option>
               <option value="ARAÇLI">Araçlı</option>
               <option value="YAYAN">Yayan</option>
             </select>
@@ -270,6 +270,19 @@
         </div>
         <div id="visitorsList" class="vis-list"></div>
         <div class="vis-pager" id="visPager"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-bulk-exit">
+      <div class="page-pad">
+        <div class="page-title-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+          <div>
+            <h2 class="page-title" style="margin:0">Toplu Çıkış</h2>
+            <p style="margin:4px 0 0;font-size:12px;color:#999">Firma seçin · içeridekilerin hepsini çıkış yapın</p>
+          </div>
+          <button type="button" class="vis-act" data-view="home">Geri</button>
+        </div>
+        <div id="bulkExitList" class="bulk-list"></div>
       </div>
     </section>
 
@@ -687,7 +700,7 @@
 
     <div class="chat-panel" id="chatPanel" aria-hidden="true">
       <div class="chat-panel-h">
-        <button type="button" class="chat-panel-back" id="chatClose" aria-label="Kapat">
+        <button type="button" class="chat-panel-back" id="chatClose" aria-label="Geri">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6"/></svg>
         </button>
         <div class="chat-panel-title">
@@ -697,6 +710,7 @@
         <button type="button" class="chat-panel-gear" id="chatSettingsBtn" aria-label="Sohbet ayarları">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V20a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H4a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c0 .7.4 1.3 1 1.5H20a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
         </button>
+        <button type="button" class="chat-panel-x" id="chatCloseX" aria-label="Kapat">×</button>
       </div>
       <div class="chat-settings hidden" id="chatSettings">
         <p class="chat-set-lead">Sohbet ayarları</p>
@@ -706,6 +720,7 @@
         </label>
         <div id="chatManagerList" class="chat-manager-list"></div>
         <button type="button" class="btn-gold" id="chatSettingsSave">Kaydet</button>
+        <button type="button" class="vis-act chat-clear-btn hidden" id="chatClearAll" style="margin-top:8px;border-color:rgba(239,68,68,.45);color:#f87171">Tüm sohbeti temizle</button>
       </div>
       <div class="chat-list" id="chatList"></div>
       <div class="chat-reply-bar hidden" id="chatReplyBar">
@@ -745,6 +760,11 @@
         <button data-view="visitors">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Ziyaretçiler
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button type="button" class="write-only" data-view="bulk-exit" id="drawerBulkExit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H3v-6"/><path d="M14 10L3 21"/><path d="M21 10V4a1 1 0 0 0-1-1H8"/></svg>
+          Toplu Çıkış
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
         </button>
         <button data-view="alerts">
@@ -820,11 +840,11 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=54"></script>
-  <script src="/js/api.js?v=54"></script>
-  <script src="/js/webauthn-client.js?v=54"></script>
-  <script src="/js/app.js?v=54"></script>
-  <script src="/js/pwa.js?v=54"></script>
+  <script src="/js/haptic.js?v=57"></script>
+  <script src="/js/api.js?v=57"></script>
+  <script src="/js/webauthn-client.js?v=57"></script>
+  <script src="/js/app.js?v=57"></script>
+  <script src="/js/pwa.js?v=57"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });

@@ -15,8 +15,33 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=53" />
-  <link rel="stylesheet" href="/css/login.css?v=53" />
+  <link rel="stylesheet" href="/css/tokens.css?v=57" />
+  <link rel="stylesheet" href="/css/login.css?v=57" />
+  <script>
+    /* Oturum varsa login boyanmadan /app'e geç */
+    (function () {
+      try {
+        document.documentElement.classList.add("auth-check");
+        fetch("/api/auth/me", { credentials: "include" })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (d && d.user) {
+              location.replace("/app");
+              return;
+            }
+            document.documentElement.classList.remove("auth-check");
+          })
+          .catch(function () {
+            document.documentElement.classList.remove("auth-check");
+          });
+      } catch (e) {
+        document.documentElement.classList.remove("auth-check");
+      }
+    })();
+  </script>
+  <style>
+    html.auth-check body { visibility: hidden; }
+  </style>
 </head>
 <body class="login-page framed">
   <div class="phone-shell">
@@ -99,11 +124,11 @@
     </div>
   </div>
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=53"></script>
-  <script src="/js/api.js?v=53"></script>
-  <script src="/js/webauthn-client.js?v=53"></script>
-  <script src="/js/login.js?v=53"></script>
-  <script src="/js/pwa.js?v=53"></script>
+  <script src="/js/haptic.js?v=57"></script>
+  <script src="/js/api.js?v=57"></script>
+  <script src="/js/webauthn-client.js?v=57"></script>
+  <script src="/js/login.js?v=57"></script>
+  <script src="/js/pwa.js?v=57"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
   </script>
