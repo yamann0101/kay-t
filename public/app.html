@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content" />
   <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,9 +14,9 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=46" />
-  <link rel="stylesheet" href="/css/app.css?v=46" />
-  <link rel="stylesheet" href="/css/login.css?v=46" />
+  <link rel="stylesheet" href="/css/tokens.css?v=47" />
+  <link rel="stylesheet" href="/css/app.css?v=47" />
+  <link rel="stylesheet" href="/css/login.css?v=47" />
 </head>
 <body class="framed">
   <div class="phone-shell app-root">
@@ -522,20 +522,7 @@
         </form>
       </div>
     </section>
-    <section class="view" id="view-chat">
-      <div class="page-pad">
-        <h2 class="page-title">Sohbet</h2>
-        <div class="chat-list" id="chatList"></div>
-        <div class="chat-reply-bar hidden" id="chatReplyBar">
-          <span>Cevap yazılıyor…</span>
-          <button type="button" id="chatReplyCancel" aria-label="İptal">×</button>
-        </div>
-        <form class="chat-compose" id="chatForm">
-          <input id="chatInput" placeholder="Mesaj yaz..." autocomplete="off" />
-          <button class="btn-gold" type="submit" style="width:auto;padding:0 14px;height:40px;border-radius:20px">Gönder</button>
-        </form>
-      </div>
-    </section>
+    <section class="view" id="view-chat" hidden aria-hidden="true"></section>
     <section class="view" id="view-help">
       <div class="page-pad">
         <h2 class="page-title">Yardım</h2>
@@ -591,6 +578,41 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
       <i class="dot" id="chatDot"></i>
     </button>
+
+    <div class="chat-panel" id="chatPanel" aria-hidden="true">
+      <div class="chat-panel-h">
+        <button type="button" class="chat-panel-back" id="chatClose" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <div class="chat-panel-title">
+          <b>Sohbet</b>
+          <small id="chatSub">Ekip mesajları</small>
+        </div>
+        <button type="button" class="chat-panel-gear" id="chatSettingsBtn" aria-label="Sohbet ayarları">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V20a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H4a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c0 .7.4 1.3 1 1.5H20a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+      </div>
+      <div class="chat-settings hidden" id="chatSettings">
+        <p class="chat-set-lead">Sohbet ayarları</p>
+        <label class="chat-set-row" id="chatManagersOnlyRow">
+          <span>Sadece yöneticiler mesaj atabilsin</span>
+          <input type="checkbox" id="chatManagersOnly" />
+        </label>
+        <div id="chatManagerList" class="chat-manager-list"></div>
+        <button type="button" class="btn-gold" id="chatSettingsSave">Kaydet</button>
+      </div>
+      <div class="chat-list" id="chatList"></div>
+      <div class="chat-reply-bar hidden" id="chatReplyBar">
+        <span>Cevap yazılıyor…</span>
+        <button type="button" id="chatReplyCancel" aria-label="İptal">×</button>
+      </div>
+      <form class="chat-compose" id="chatForm">
+        <input id="chatInput" placeholder="Mesaj yaz..." autocomplete="off" />
+        <button class="chat-send" type="submit" aria-label="Gönder">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.6l17.5-7.4c.8-.3.8-1.5 0-1.8L3.4 3.9c-.7-.3-1.4.3-1.2 1l1.7 6.2c.1.3.3.5.6.6l8.3.8-8.3.8c-.3 0-.5.2-.6.6L2.2 19.6c-.2.7.5 1.3 1.2 1z"/></svg>
+        </button>
+      </form>
+    </div>
 
     <div class="drawer-bg" id="drawerBg"></div>
     <aside class="drawer" id="drawer">
@@ -677,9 +699,9 @@
     </aside>
 
     <div class="sheet-bg hidden" id="sheetBg"></div>
-    <aside class="sheet" id="sheet">
+    <aside class="sheet" id="sheet" aria-hidden="true">
       <div class="sheet-h">
-        <h3 id="sheetTitle">Detay</h3>
+        <h3 id="sheetTitle"></h3>
         <button type="button" id="sheetClose" aria-label="Kapat">×</button>
       </div>
       <div class="sheet-body" id="sheetBody"></div>
@@ -687,9 +709,9 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=46"></script>
-  <script src="/js/api.js?v=46"></script>
-  <script src="/js/app.js?v=46"></script>
-  <script src="/js/pwa.js?v=46"></script>
+  <script src="/js/haptic.js?v=47"></script>
+  <script src="/js/api.js?v=47"></script>
+  <script src="/js/app.js?v=47"></script>
+  <script src="/js/pwa.js?v=47"></script>
 </body>
 </html>

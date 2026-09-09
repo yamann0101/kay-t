@@ -68,7 +68,6 @@ export async function insertVisitor(userId, body, fields, opts = {}) {
   const { cols, extra } = splitVisitorPayload(body || {}, schema);
   const first = toUpperTr(cols.first_name || body?.first_name || "").trim();
   const last = toUpperTr(cols.last_name || body?.last_name || "").trim();
-  const name = toUpperTr(body?.full_name || `${first} ${last}`.trim() || "ZİYARETÇİ").trim();
   cols.company = toUpperTr(cols.company || body?.company || "").trim();
   cols.host = toUpperTr(cols.host || body?.host || "").trim();
   cols.phone = toUpperTr(cols.phone || body?.phone || "").trim();
@@ -91,6 +90,9 @@ export async function insertVisitor(userId, body, fields, opts = {}) {
   }
 
   if (!opts.skipRequired) {
+    if (!first || !last) {
+      throw new Error("İsim ve soyisim zorunlu");
+    }
     for (const f of enabledFields(schema)) {
       if (!f.required || f.readonly || f.key === "visit_type" || f.key === "entry_type") continue;
       const val = BUILTIN_KEYS.has(f.key) ? cols[f.key] : extra[f.key];
@@ -99,6 +101,9 @@ export async function insertVisitor(userId, body, fields, opts = {}) {
       }
     }
   }
+
+  const name = toUpperTr(body?.full_name || `${first} ${last}`.trim()).trim();
+  if (!name) throw new Error("İsim ve soyisim zorunlu");
 
   const type = ["sevkiyat", "gorusme", "calisma"].includes(cols.visit_type || body?.visit_type)
     ? cols.visit_type || body.visit_type

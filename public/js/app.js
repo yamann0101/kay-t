@@ -66,7 +66,24 @@ const VISIT_META = {
   },
 };
 
+let lastMainView = "home";
+
+function persistView(name) {
+  try {
+    localStorage.setItem("s360_view", name);
+    sessionStorage.setItem("s360_view", name);
+  } catch {
+    /* ignore */
+  }
+}
+
 function showView(name) {
+  if (name === "chat") {
+    openChatPanel();
+    return;
+  }
+  closeChatPanel(false);
+  lastMainView = name;
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   const el = document.getElementById(`view-${name}`);
   if (el) el.classList.add("active");
@@ -79,13 +96,8 @@ function showView(name) {
   document.getElementById("openRegisterMenu")?.classList.toggle("active", name === "visitor-form");
   document.querySelector(".fab-slot")?.classList.toggle("active", name === "visitor-form");
   document.querySelector(".app-root")?.classList.toggle("reg-mode", name === "visitor-form");
-  window.chatOpen = name === "chat";
-  document.getElementById("chatFab")?.classList.toggle("hidden", name === "chat" || name === "visitor-form");
-  try {
-    sessionStorage.setItem("s360_view", name);
-  } catch {
-    /* ignore */
-  }
+  document.getElementById("chatFab")?.classList.toggle("hidden", name === "visitor-form");
+  persistView(name);
   syncChatSwState();
   closeDrawer();
   if (name === "keys") loadKeys();
@@ -99,7 +111,47 @@ function showView(name) {
   if (name === "patrol") loadPatrols();
   if (name === "announcements") loadAnn();
   if (name === "profile") loadProfile();
-  if (name === "chat") loadChat();
+}
+
+function openChatPanel() {
+  window.chatOpen = true;
+  const panel = document.getElementById("chatPanel");
+  panel?.classList.add("open");
+  panel?.setAttribute("aria-hidden", "false");
+  document.getElementById("chatFab")?.classList.add("hidden");
+  persistView("chat");
+  syncChatSwState();
+  closeDrawer();
+  loadChat();
+  bindChatKeyboard();
+}
+
+function closeChatPanel(restoreView = true) {
+  window.chatOpen = false;
+  const panel = document.getElementById("chatPanel");
+  panel?.classList.remove("open");
+  panel?.setAttribute("aria-hidden", "true");
+  document.getElementById("chatSettings")?.classList.add("hidden");
+  const onForm = document.getElementById("view-visitor-form")?.classList.contains("active");
+  document.getElementById("chatFab")?.classList.toggle("hidden", Boolean(onForm));
+  syncChatSwState();
+  if (restoreView) {
+    const v = lastMainView || "home";
+    persistView(v);
+  }
+}
+
+function bindChatKeyboard() {
+  if (window.__chatKbBound || !window.visualViewport) return;
+  window.__chatKbBound = true;
+  const sync = () => {
+    const vv = window.visualViewport;
+    const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty("--kb", `${inset}px`);
+  };
+  window.visualViewport.addEventListener("resize", sync);
+  window.visualViewport.addEventListener("scroll", sync);
+  sync();
 }
 
 function syncChatSwState() {
@@ -1230,15 +1282,19 @@ async function loadAlerts() {
 }
 
 function openSheet(title, html) {
-  document.getElementById("sheetTitle").textContent = title;
+  document.getElementById("sheetTitle").textContent = title || "";
   document.getElementById("sheetBody").innerHTML = html;
   document.getElementById("sheet").classList.add("open");
+  document.getElementById("sheet").setAttribute("aria-hidden", "false");
   document.getElementById("sheetBg").classList.remove("hidden");
 }
 
 function closeSheet() {
   document.getElementById("sheet").classList.remove("open");
+  document.getElementById("sheet").setAttribute("aria-hidden", "true");
   document.getElementById("sheetBg").classList.add("hidden");
+  document.getElementById("sheetTitle").textContent = "";
+  document.getElementById("sheetBody").innerHTML = "";
 }
 
 async function getVisitorById(id) {
@@ -2024,6 +2080,12 @@ document.getElementById("visitorForm").addEventListener("submit", async (e) => {
   if (body.visit_date && String(body.visit_date).includes("-")) {
     body.visit_date = isoToTr(body.visit_date);
   }
+  const firstName = String(body.first_name || "").trim();
+  const lastName = String(body.last_name || "").trim();
+  if (!firstName || !lastName) {
+    toast("İsim ve soyisim zorunlu");
+    return;
+  }
   try {
     const data = await saveVisitorOnlineOrQueue(body);
     const extra = body.companions.length ? ` (+${body.companions.length} kişi)` : "";
@@ -2336,7 +2398,10 @@ async function boot() {
   document.getElementById("homeBulkExit")?.addEventListener("click", () => openBulkExitSheet());
   document.getElementById("homeCargoBtn")?.addEventListener("click", () => openNoteSheet("cargo"));
   document.getElementById("homeNoteBtn")?.addEventListener("click", () => openNoteSheet("note"));
-  document.getElementById("chatFab")?.addEventListener("click", () => showView("chat"));
+  document.getElementById("chatFab")?.addEventListener("click", () => openChatPanel());
+  document.getElementById("chatClose")?.addEventListener("click", () => closeChatPanel(true));
+  document.getElementById("chatSettingsBtn")?.addEventListener("click", () => openChatSettings());
+  document.getElementById("chatSettingsSave")?.addEventListener("click", () => saveChatSettings());
   document.getElementById("notifReadAll")?.addEventListener("click", async () => {
     await loadNotifs({ markRead: true, all: true });
     toast("Tümü okundu");
@@ -2351,20 +2416,22 @@ async function boot() {
   });
   navigator.serviceWorker?.addEventListener("message", (ev) => {
     if (ev.data?.type === "OPEN_CHAT") {
-      showView("chat");
+      openChatPanel();
       if (ev.data.chatId) setTimeout(() => jumpToChatMessage(ev.data.chatId), 350);
     }
   });
   let restored = "home";
   try {
-    restored = sessionStorage.getItem("s360_view") || "home";
+    restored = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view") || "home";
   } catch {
     restored = "home";
   }
   if (location.hash.startsWith("#chat-")) {
     const id = location.hash.slice(6);
-    showView("chat");
+    openChatPanel();
     setTimeout(() => jumpToChatMessage(id), 400);
+  } else if (restored === "chat") {
+    openChatPanel();
   } else if (restored && restored !== "home") {
     showView(restored);
   }
@@ -2440,7 +2507,8 @@ async function savePassword(e) {
 }
 
 async function loadChat(opts = {}) {
-  const { items } = await api("/api/app/chat");
+  const data = await api("/api/app/chat");
+  const items = data.items || [];
   const box = document.getElementById("chatList");
   if (!box) return;
   const meId = window.currentUser?.id;
@@ -2455,20 +2523,40 @@ async function loadChat(opts = {}) {
   if (window.chatOpen) document.getElementById("chatDot").style.display = "none";
   if (opts.silent && !window.chatOpen) return;
 
-  box.innerHTML = (items || [])
-    .map((m) => {
-      const mine = String(m.user_id) === String(meId);
-      return `<div class="chat-bubble${mine ? " mine" : ""}" data-mid="${m.id}" data-reply-to="${m.reply_to || ""}">
-        ${m.reply_body ? `<button type="button" class="reply-ref" data-jump="${m.reply_to || ""}">${escHtml(m.reply_user_name || "")}: ${escHtml(m.reply_body)}</button>` : ""}
-        <div class="who">${escHtml(m.user_name || "—")} · ${fmtDateTime(m.created_at)}</div>
-        <div class="chat-body">${escHtml(m.body)}</div>
-        <div class="chat-acts">
+  const canPost = data.can_post !== false;
+  const input = document.getElementById("chatInput");
+  const sendBtn = document.querySelector("#chatForm .chat-send");
+  if (input) {
+    input.disabled = !canPost;
+    input.placeholder = canPost ? "Mesaj yaz..." : "Sadece yöneticiler yazabilir";
+  }
+  if (sendBtn) sendBtn.disabled = !canPost;
+  const sub = document.getElementById("chatSub");
+  if (sub) sub.textContent = data.managers_only ? "Sadece yöneticiler yazabilir" : "Ekip mesajları";
+
+  box.innerHTML = items.length
+    ? items
+        .map((m) => {
+          const mine = String(m.user_id) === String(meId);
+          const deleted = Boolean(m.deleted_at);
+          const canDel = !deleted && (mine || window.currentUser?.role === "admin");
+          return `<div class="chat-bubble${mine ? " mine" : ""}${deleted ? " deleted" : ""}" data-mid="${m.id}" data-reply-to="${m.reply_to || ""}">
+        ${!deleted && m.reply_body ? `<button type="button" class="reply-ref" data-jump="${m.reply_to || ""}">${escHtml(m.reply_user_name || "")}: ${escHtml(m.reply_body)}</button>` : ""}
+        <div class="who">${escHtml(m.user_name || "—")}</div>
+        <div class="chat-body">${deleted ? "Bu mesaj silindi" : escHtml(m.body)}</div>
+        <div class="chat-meta">${fmtDateTime(m.created_at)}</div>
+        ${
+          deleted
+            ? ""
+            : `<div class="chat-acts">
           <button type="button" class="vis-act" data-reply="${m.id}">Cevapla</button>
-          ${window.currentUser?.role === "admin" ? `<button type="button" class="vis-act" data-cdel="${m.id}">Sil</button>` : ""}
-        </div>
+          ${canDel ? `<button type="button" class="vis-act" data-cdel="${m.id}">Sil</button>` : ""}
+        </div>`
+        }
       </div>`;
-    })
-    .join("");
+        })
+        .join("")
+    : `<div class="dir-info" style="padding:20px;text-align:center;color:#888">Henüz mesaj yok</div>`;
 
   box.querySelectorAll("[data-reply]").forEach((b) => {
     b.onclick = (e) => {
@@ -2479,9 +2567,13 @@ async function loadChat(opts = {}) {
   box.querySelectorAll("[data-cdel]").forEach((b) => {
     b.onclick = async (e) => {
       e.stopPropagation();
-      if (!confirm("Mesaj silinsin mi?")) return;
-      await api(`/api/app/chat/${b.dataset.cdel}`, { method: "DELETE" });
-      loadChat();
+      if (!confirm("Mesaj herkesten silinsin mi?")) return;
+      try {
+        await api(`/api/app/chat/${b.dataset.cdel}`, { method: "DELETE" });
+        loadChat();
+      } catch (err) {
+        toast(err.message || "Silinemedi");
+      }
     };
   });
   box.querySelectorAll("[data-jump]").forEach((b) => {
@@ -2492,6 +2584,57 @@ async function loadChat(opts = {}) {
   });
   bindChatSwipe(box);
   if (!opts.silent) box.scrollTop = box.scrollHeight;
+}
+
+async function openChatSettings() {
+  const box = document.getElementById("chatSettings");
+  if (!box) return;
+  box.classList.toggle("hidden");
+  if (box.classList.contains("hidden")) return;
+  if (window.currentUser?.role !== "admin") {
+    document.getElementById("chatManagersOnlyRow").style.display = "none";
+    document.getElementById("chatManagerList").innerHTML =
+      '<p style="font-size:12px;color:#999">Ayarları sadece yönetici değiştirebilir.</p>';
+    document.getElementById("chatSettingsSave").style.display = "none";
+    return;
+  }
+  document.getElementById("chatManagersOnlyRow").style.display = "";
+  document.getElementById("chatSettingsSave").style.display = "";
+  try {
+    const data = await api("/api/app/chat/settings");
+    document.getElementById("chatManagersOnly").checked = Boolean(data.managers_only);
+    document.getElementById("chatManagerList").innerHTML = (data.users || [])
+      .map(
+        (u) =>
+          `<label><input type="checkbox" data-cm="${u.id}" ${
+            u.chat_manager || u.role === "admin" || u.role === "supervisor" ? "checked" : ""
+          } ${u.role === "admin" || u.role === "supervisor" ? "disabled" : ""}/> ${escHtml(
+            u.full_name
+          )} <small style="color:#888">(${escHtml(u.role)})</small></label>`
+      )
+      .join("");
+  } catch (err) {
+    toast(err.message || "Ayarlar alınamadı");
+  }
+}
+
+async function saveChatSettings() {
+  if (window.currentUser?.role !== "admin") return;
+  const managers_only = Boolean(document.getElementById("chatManagersOnly")?.checked);
+  const manager_ids = [...document.querySelectorAll("[data-cm]:checked")]
+    .map((el) => el.dataset.cm)
+    .filter(Boolean);
+  try {
+    await api("/api/app/chat/settings", {
+      method: "PATCH",
+      body: { managers_only, manager_ids },
+    });
+    toast("Sohbet ayarları kaydedildi");
+    document.getElementById("chatSettings")?.classList.add("hidden");
+    loadChat();
+  } catch (err) {
+    toast(err.message || "Kaydedilemedi");
+  }
 }
 
 function setChatReply(id) {

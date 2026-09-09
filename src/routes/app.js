@@ -901,10 +901,12 @@ router.post("/notes", async (req, res) => {
   res.json({ item: rows[0] });
 });
 
-router.get("/chat", async (_req, res) => {
+router.get("/chat", async (req, res) => {
   const { rows } = await query(
-    `SELECT m.*, u.full_name AS user_name, u.photo_url,
-            r.body AS reply_body, ru.full_name AS reply_user_name
+    `SELECT m.id, m.user_id, m.body, m.reply_to, m.created_at, m.deleted_at, m.deleted_by,
+            u.full_name AS user_name, u.photo_url,
+            CASE WHEN m.deleted_at IS NULL THEN r.body ELSE NULL END AS reply_body,
+            ru.full_name AS reply_user_name
      FROM chat_messages m
      LEFT JOIN users u ON u.id = m.user_id
      LEFT JOIN chat_messages r ON r.id = m.reply_to
@@ -912,10 +914,68 @@ router.get("/chat", async (_req, res) => {
      ORDER BY m.created_at DESC
      LIMIT 120`
   );
-  res.json({ items: rows.reverse() });
+  const settings = await query(`SELECT value FROM settings WHERE key='chat_managers_only'`);
+  const managersOnly = settings.rows[0]?.value === "1" || settings.rows[0]?.value === "true";
+  res.json({
+    items: rows.reverse(),
+    managers_only: managersOnly,
+    can_post: canPostChat(req.user, managersOnly),
+  });
+});
+
+function canPostChat(user, managersOnly) {
+  if (!managersOnly) return true;
+  if (!user) return false;
+  if (user.role === "admin" || user.role === "supervisor") return true;
+  return Boolean(user.chat_manager);
+}
+
+router.get("/chat/settings", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Yönetici gerekli" });
+  const settings = await query(`SELECT value FROM settings WHERE key='chat_managers_only'`);
+  const managers = await query(
+    `SELECT id, full_name, username, role, chat_manager FROM users WHERE active = TRUE ORDER BY full_name`
+  );
+  res.json({
+    managers_only: settings.rows[0]?.value === "1" || settings.rows[0]?.value === "true",
+    users: managers.rows,
+  });
+});
+
+router.patch("/chat/settings", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Yönetici gerekli" });
+  if (req.body?.managers_only != null) {
+    const on = Boolean(req.body.managers_only);
+    await query(
+      `INSERT INTO settings (key, value) VALUES ('chat_managers_only', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [on ? "1" : "0"]
+    );
+  }
+  if (Array.isArray(req.body?.manager_ids)) {
+    const ids = req.body.manager_ids.map(String);
+    await query(`UPDATE users SET chat_manager = FALSE`);
+    if (ids.length) {
+      await query(`UPDATE users SET chat_manager = TRUE WHERE id = ANY($1::uuid[])`, [ids]);
+    }
+  }
+  await writeLog(req, "Sohbet ayarları", JSON.stringify(req.body || {}));
+  const settings = await query(`SELECT value FROM settings WHERE key='chat_managers_only'`);
+  const managers = await query(
+    `SELECT id, full_name, username, role, chat_manager FROM users WHERE active = TRUE ORDER BY full_name`
+  );
+  res.json({
+    managers_only: settings.rows[0]?.value === "1" || settings.rows[0]?.value === "true",
+    users: managers.rows,
+  });
 });
 
 router.post("/chat", async (req, res) => {
+  const settings = await query(`SELECT value FROM settings WHERE key='chat_managers_only'`);
+  const managersOnly = settings.rows[0]?.value === "1" || settings.rows[0]?.value === "true";
+  if (!canPostChat(req.user, managersOnly)) {
+    return res.status(403).json({ error: "Sadece sohbet yöneticileri mesaj atabilir" });
+  }
   const body = String(req.body?.body || "").trim();
   if (!body) return res.status(400).json({ error: "Mesaj boş" });
   const replyTo = req.body?.reply_to || null;
@@ -937,10 +997,21 @@ router.post("/chat", async (req, res) => {
 });
 
 router.delete("/chat/:id", async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Sadece yönetici silebilir" });
-  await query(`DELETE FROM chat_messages WHERE id=$1`, [req.params.id]);
-  await writeLog(req, "Sohbet silme", req.params.id);
-  res.json({ ok: true });
+  const cur = await query(`SELECT * FROM chat_messages WHERE id=$1`, [req.params.id]);
+  if (!cur.rows[0]) return res.status(404).json({ error: "Mesaj yok" });
+  const msg = cur.rows[0];
+  const isOwner = String(msg.user_id) === String(req.user.id);
+  const isAdmin = req.user.role === "admin";
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ error: "Sadece kendi mesajınızı silebilirsiniz" });
+  }
+  // Soft delete — herkes görür: Silindi
+  await query(
+    `UPDATE chat_messages SET deleted_at = NOW(), deleted_by = $2, body = CASE WHEN body = '' THEN body ELSE body END WHERE id = $1`,
+    [req.params.id, req.user.id]
+  );
+  await writeLog(req, "Sohbet mesaj silindi", req.params.id);
+  res.json({ ok: true, soft: true });
 });
 
 export default router;

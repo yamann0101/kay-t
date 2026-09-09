@@ -122,6 +122,7 @@ async function loadUsers() {
         <td>${u.full_name}</td>
         <td>${u.username}</td>
         <td><span class="badge ${u.role}">${u.role}</span></td>
+        <td><input type="checkbox" data-chat-mgr="${u.id}" ${u.chat_manager || u.role === "admin" || u.role === "supervisor" ? "checked" : ""} ${u.role === "admin" || u.role === "supervisor" ? "disabled" : ""} title="Sohbet yöneticisi"/></td>
         <td><button class="btn danger small" data-del-user="${u.id}">Sil</button></td>
       </tr>`
     )
@@ -136,6 +137,20 @@ async function loadUsers() {
         loadDash();
       } catch (err) {
         toast(err.message);
+      }
+    };
+  });
+  document.querySelectorAll("[data-chat-mgr]").forEach((b) => {
+    b.onchange = async () => {
+      try {
+        await api(`/api/admin/users/${b.dataset.chatMgr}`, {
+          method: "PATCH",
+          body: { chat_manager: b.checked },
+        });
+        toast(b.checked ? "Sohbet yöneticisi eklendi" : "Sohbet yöneticisi kaldırıldı");
+      } catch (err) {
+        toast(err.message);
+        b.checked = !b.checked;
       }
     };
   });
@@ -478,6 +493,8 @@ async function loadSettings() {
   document.getElementById("copySevkiyat").value = copy.sevkiyat || "";
   document.getElementById("copyGorusme").value = copy.gorusme || "";
   document.getElementById("copyCalisma").value = copy.calisma || "";
+  const chatOnly = document.getElementById("adminChatManagersOnly");
+  if (chatOnly) chatOnly.checked = Boolean(s.chat_managers_only);
 }
 
 document.getElementById("addFieldBtn").onclick = () => {
@@ -549,6 +566,14 @@ document.getElementById("saveCopyBtn").onclick = async () => {
   });
   toast("Kopya şablonları kaydedildi");
 };
+
+document.getElementById("saveChatAdminBtn")?.addEventListener("click", async () => {
+  await api("/api/admin/settings", {
+    method: "PATCH",
+    body: { chat_managers_only: document.getElementById("adminChatManagersOnly").checked },
+  });
+  toast("Sohbet ayarı kaydedildi");
+});
 
 (async function boot() {
   try {

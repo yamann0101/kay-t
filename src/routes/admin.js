@@ -63,7 +63,7 @@ router.get("/overview", async (_req, res) => {
 
 router.get("/users", async (_req, res) => {
   const { rows } = await query(
-    `SELECT id, username, full_name, role, phone, active, created_at
+    `SELECT id, username, full_name, role, phone, active, chat_manager, created_at
      FROM users ORDER BY created_at DESC`
   );
   res.json({ items: rows });
@@ -93,7 +93,7 @@ router.post("/users", async (req, res) => {
 });
 
 router.patch("/users/:id", async (req, res) => {
-  const { full_name, role, phone, active, password } = req.body || {};
+  const { full_name, role, phone, active, password, chat_manager } = req.body || {};
   const sets = [];
   const vals = [];
   let i = 1;
@@ -113,6 +113,10 @@ router.patch("/users/:id", async (req, res) => {
     sets.push(`active=$${i++}`);
     vals.push(Boolean(active));
   }
+  if (chat_manager != null) {
+    sets.push(`chat_manager=$${i++}`);
+    vals.push(Boolean(chat_manager));
+  }
   if (password) {
     sets.push(`password_hash=$${i++}`);
     vals.push(await bcrypt.hash(String(password), 10));
@@ -121,7 +125,7 @@ router.patch("/users/:id", async (req, res) => {
   vals.push(req.params.id);
   const { rows } = await query(
     `UPDATE users SET ${sets.join(", ")} WHERE id=$${i}
-     RETURNING id, username, full_name, role, phone, active, created_at`,
+     RETURNING id, username, full_name, role, phone, active, chat_manager, created_at`,
     vals
   );
   await writeLog(req, "Kullanıcı güncellendi", rows[0]?.username);
@@ -365,6 +369,7 @@ router.get("/settings", async (_req, res) => {
     visitor_fields: await getVisitorFields(),
     shift_reminders: parseShift(map.shift_reminders),
     copy_templates: parseCopy(map.copy_templates),
+    chat_managers_only: map.chat_managers_only === "1" || map.chat_managers_only === "true",
   });
 });
 
@@ -406,6 +411,16 @@ router.patch("/settings", async (req, res) => {
     );
     out.copy_templates = parseCopy(JSON.stringify({ ...DEFAULT_COPY, ...copy }));
     await writeLog(req, "Kopya şablonları güncellendi", "");
+  }
+  if (req.body?.chat_managers_only != null) {
+    const on = Boolean(req.body.chat_managers_only);
+    await query(
+      `INSERT INTO settings (key, value) VALUES ('chat_managers_only', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [on ? "1" : "0"]
+    );
+    out.chat_managers_only = on;
+    await writeLog(req, "Sohbet ayarı", on ? "sadece yöneticiler" : "herkes");
   }
   if (!Object.keys(out).length) {
     return res.status(400).json({ error: "Güncellenecek ayar yok" });

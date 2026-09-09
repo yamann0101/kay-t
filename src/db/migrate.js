@@ -6,7 +6,7 @@ import { backfillVisitorPeople } from "../lib/visitors.js";
 import { DEFAULT_COPY, DEFAULT_SHIFT } from "../lib/appSettings.js";
 
 /** Şema sürümü: her yapısal değişiklikte artır. Seed tekrarlanmaz. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -451,6 +451,9 @@ export async function migrate() {
     );
     CREATE INDEX IF NOT EXISTS idx_site_notes_created ON site_notes(created_at DESC);
     ALTER TABLE visitor_alerts ADD COLUMN IF NOT EXISTS will_enter BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_manager BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+    ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL;
   `);
 
   const result = await seedIfEmpty();

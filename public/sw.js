@@ -1,4 +1,4 @@
-const CACHE = "s360-v37";
+const CACHE = "s360-v38";
 const PRECACHE = [
   "/",
   "/app",
