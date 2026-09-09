@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <title>S-360 · Yönetici</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/tokens.css?v=16" />
+  <link rel="stylesheet" href="/css/admin.css?v=16" />
+  <link rel="stylesheet" href="/css/login.css?v=16" />
+</head>
+<body class="admin-body">
+  <div class="aside-bg hidden" id="asideBg"></div>
+  <div class="admin-layout">
+    <aside class="aside" id="aside">
+      <div class="logo">
+        <img src="/icons/icon-192.png" alt="" />
+        <div>
+          <strong class="gold-text">S-360</strong>
+          <small>YÖNETİCİ PANELİ</small>
+        </div>
+      </div>
+      <nav>
+        <button class="active" data-view="dash">Özet</button>
+        <button data-view="visitors">Ziyaretçiler</button>
+        <button data-view="users">Kullanıcılar</button>
+        <button data-view="keys">Anahtarlar</button>
+        <button data-view="logs">Loglar</button>
+        <button data-view="announce">Duyurular</button>
+        <button data-view="push">Bildirim Gönder</button>
+        <button data-view="settings">Ayarlar</button>
+        <button data-view="backup">Yedekleme / Veri</button>
+      </nav>
+      <a class="btn ghost" href="/app" style="display:flex;align-items:center;justify-content:center;margin:8px 4px">Saha Uygulaması</a>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="menu-btn" id="openAside" aria-label="Menü">☰</button>
+          <div>
+            <h1 id="pageTitle">Özet</h1>
+            <div class="sub" id="pageSub">Sistemin genel durumu</div>
+          </div>
+        </div>
+        <button class="btn ghost" id="logout">Çıkış</button>
+      </div>
+
+      <section class="admin-view active" id="view-dash">
+        <div class="kpis">
+          <div class="kpi"><span>Kullanıcı</span><b id="k-users">0</b></div>
+          <div class="kpi"><span>Anahtar</span><b id="k-keys">0</b></div>
+          <div class="kpi"><span>Ziyaretçi</span><b id="k-visitors">0</b></div>
+          <div class="kpi"><span>Bugün hareket</span><b id="k-today">0</b></div>
+          <div class="kpi"><span>Log kaydı</span><b id="k-logs">0</b></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h3>Son loglar</h3></div>
+          <div class="table-wrap"><table><thead><tr><th>Zaman</th><th>Kullanıcı</th><th>İşlem</th><th>Detay</th></tr></thead><tbody id="dashLogs"></tbody></table></div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-visitors">
+        <div class="panel">
+          <div class="panel-h">
+            <h3>Ziyaretçi kayıtları</h3>
+            <div class="toolbar">
+              <input type="search" id="visitorSearch" placeholder="Ara..." />
+              <button class="btn ghost" type="button" id="exportVisitorsXls">Excel indir</button>
+              <button class="btn ghost" type="button" id="exportVisitorsCsv">CSV indir</button>
+              <button class="btn gold" type="button" id="importVisitorsBtn">Excel / CSV yükle</button>
+              <input type="file" id="importVisitorsFile" accept=".csv,.xls,.txt,text/csv,application/vnd.ms-excel" hidden />
+            </div>
+          </div>
+          <p class="muted pad-note">Sütun sırası ve başlıklar form tasarımcısıyla aynıdır. Excel’de de aynı sıra kullanılır.</p>
+          <div class="table-wrap"><table><thead id="visitorHead"></thead><tbody id="visitorRows"></tbody></table></div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-users">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-h"><h3>Kayıtlı kullanıcılar</h3></div>
+            <div class="table-wrap"><table><thead><tr><th>Ad</th><th>Kullanıcı</th><th>Rol</th><th></th></tr></thead><tbody id="userRows"></tbody></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><h3>Yeni kullanıcı</h3></div>
+            <form class="form-grid" id="userForm">
+              <input name="full_name" placeholder="Ad Soyad" required />
+              <input name="username" placeholder="Kullanıcı adı" required />
+              <input name="password" placeholder="Şifre" required />
+              <input name="phone" placeholder="Telefon" />
+              <select name="role">
+                <option value="guard">Görevli</option>
+                <option value="supervisor">Süpervizör</option>
+                <option value="admin">Yönetici</option>
+              </select>
+              <button class="btn gold" type="submit">Ekle</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-keys">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-h">
+              <h3>Anahtar envanteri</h3>
+              <div class="toolbar">
+                <button class="btn ghost" type="button" id="exportKeysXls">Excel indir</button>
+                <button class="btn ghost" type="button" id="exportKeysCsv">CSV indir</button>
+                <button class="btn gold" type="button" id="importKeysBtn">Excel / CSV yükle</button>
+                <input type="file" id="importKeysFile" accept=".csv,.xls,.txt,text/csv,application/vnd.ms-excel" hidden />
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Numara</th>
+                    <th>Ad</th>
+                    <th>Bölüm</th>
+                    <th>Durum</th>
+                    <th>Sık</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="keyRows"></tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="panel">
+              <div class="panel-h"><h3>Bölüm ekle</h3></div>
+              <form class="form-grid" id="sectionForm">
+                <input name="name" placeholder="Bölüm adı (Üretim, Blok A...)" required />
+                <button class="btn gold" type="submit">Bölüm ekle</button>
+              </form>
+              <div class="form-grid" id="sectionRows"></div>
+            </div>
+            <div class="panel" style="margin-top:16px">
+              <div class="panel-h"><h3>Anahtar ekle</h3></div>
+              <form class="form-grid" id="keyForm">
+                <input name="code" placeholder="Numara veya kod (Ü-1)" required />
+                <input name="name" placeholder="Anahtar adı" required />
+                <select name="section_id" id="keySectionSelect">
+                  <option value="">Bölüm seç</option>
+                </select>
+                <input name="location" placeholder="Konum" />
+                <input name="notes" placeholder="Not" />
+                <label class="check-row"><input type="checkbox" name="pinned" /> Sık kullanılanlara ekle</label>
+                <button class="btn gold" type="submit">Ekle</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-logs">
+        <div class="panel">
+          <div class="panel-h"><h3>Sistem logları</h3></div>
+          <div class="table-wrap"><table><thead><tr><th>Zaman</th><th>Kullanıcı</th><th>İşlem</th><th>Detay</th><th>IP</th></tr></thead><tbody id="logRows"></tbody></table></div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-announce">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-h"><h3>Duyurular</h3></div>
+            <div id="annRows" class="form-grid"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><h3>Yeni duyuru</h3></div>
+            <form class="form-grid" id="annForm">
+              <input name="title" placeholder="Başlık" required />
+              <textarea name="body" rows="4" placeholder="Metin" required></textarea>
+              <button class="btn gold" type="submit">Yayınla</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-push">
+        <div class="panel" style="max-width:560px">
+          <div class="panel-h"><h3>Tüm cihazlara bildirim</h3></div>
+          <form class="form-grid" id="pushForm">
+            <input name="title" placeholder="Başlık" required />
+            <textarea name="body" rows="3" placeholder="Mesaj" required></textarea>
+            <button class="btn gold" type="submit">Gönder</button>
+            <p class="muted">PWA yüklü cihazlarda anlık bildirim görünür.</p>
+          </form>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-settings">
+        <div class="panel" style="max-width:920px;margin-bottom:16px">
+          <div class="panel-h"><h3>+ butonu varsayılan ekranı</h3></div>
+          <div class="form-grid">
+            <p class="muted">Saha uygulamasındaki altın + tuşu, seçtiğiniz kayıt ekranını otomatik açar. Şu an varsayılan: <b id="currentDefault">Sevkiyat</b></p>
+            <div class="default-picks" id="defaultPicks">
+              <button type="button" class="pick" data-type="sevkiyat">
+                <b>Sevkiyat</b>
+                <span>Malzeme / araç teslimatı</span>
+              </button>
+              <button type="button" class="pick" data-type="gorusme">
+                <b>Görüşme</b>
+                <span>Firma veya personel görüşmesi</span>
+              </button>
+              <button type="button" class="pick" data-type="calisma">
+                <b>Çalışma</b>
+                <span>Proje, bakım, onarım</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="max-width:920px">
+          <div class="panel-h">
+            <h3>Ziyaretçi formu sütunları</h3>
+            <div class="toolbar">
+              <button class="btn ghost" type="button" id="addFieldBtn">Sütun ekle</button>
+              <button class="btn gold" type="button" id="saveFieldsBtn">Sütunları kaydet</button>
+            </div>
+          </div>
+          <p class="muted pad-note">Başlıkları değiştirin, sırayı ↑↓ ile kaydırın, görünürlüğü kapatın. Özel sütunlar silinebilir. Excel indirme bu sırayı kullanır.</p>
+          <div id="fieldRows"></div>
+        </div>
+        <div class="panel" style="max-width:920px;margin-top:16px">
+          <div class="panel-h"><h3>Mesai / yemek hatırlatması</h3></div>
+          <p class="muted pad-note">Her gün bu saatlerde saha uygulamasının üstünde yazı çıkar ve bildirim düşer.</p>
+          <div class="form-grid" id="shiftForm">
+            <label class="check-row" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="shiftEnabled" checked /> Aktif</label>
+            <label>Sabah iş başı <input type="time" id="shiftMorning" value="08:00" /></label>
+            <label>Sabah metni <input id="shiftMorningText" /></label>
+            <label>Öğle molası <input type="time" id="shiftLunch" value="12:00" /></label>
+            <label>Öğle metni <input id="shiftLunchText" /></label>
+            <label>Akşam çıkış <input type="time" id="shiftEvening" value="18:00" /></label>
+            <label>Akşam metni <input id="shiftEveningText" /></label>
+            <button class="btn gold" type="button" id="saveShiftBtn">Hatırlatmaları kaydet</button>
+          </div>
+        </div>
+        <div class="panel" style="max-width:920px;margin-top:16px">
+          <div class="panel-h"><h3>Ziyaretçi kopyala metinleri</h3></div>
+          <p class="muted pad-note">Kopyala tuşu bu açıklamayı kullanır. Birden fazla kişide YAPTI otomatik YAPTILAR olur.</p>
+          <div class="form-grid">
+            <label>Sevkiyat<textarea id="copySevkiyat" rows="3"></textarea></label>
+            <label>Görüşme<textarea id="copyGorusme" rows="3"></textarea></label>
+            <label>Çalışma<textarea id="copyCalisma" rows="3"></textarea></label>
+            <button class="btn gold" type="button" id="saveCopyBtn">Şablonları kaydet</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="admin-view" id="view-backup">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-h"><h3>Yedekleme</h3></div>
+            <div class="form-grid">
+              <p class="muted">Tüm verileri JSON olarak indirin. Kullanıcı şifreleri dahil edilmez.</p>
+              <button class="btn gold" id="downloadBackup">JSON yedeği indir</button>
+              <p class="muted">Yedeği geri yükler: ziyaretçi, anahtar, hareket, duyuru, ayar. Kullanıcı hesapları değişmez.</p>
+              <button class="btn ghost" type="button" id="restoreBackupBtn">JSON yedek yükle</button>
+              <input type="file" id="restoreBackupFile" accept=".json,application/json" hidden />
+              <p class="muted">Ziyaretçi kayıtlarını Excel sırasıyla indirin veya yükleyin.</p>
+              <div class="toolbar">
+                <button class="btn ghost" type="button" id="backupExportXls">Ziyaretçi Excel</button>
+                <button class="btn ghost" type="button" id="backupExportCsv">Ziyaretçi CSV</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><h3>Veri sil</h3></div>
+            <div class="form-grid">
+              <p class="muted">Bu işlem geri alınamaz. Kullanıcı ve anahtarlar silinmez.</p>
+              <button class="btn danger" data-purge="movements">Hareketleri sil</button>
+              <button class="btn danger" data-purge="visitors">Ziyaretçileri sil</button>
+              <button class="btn danger" data-purge="logs">Logları sil</button>
+              <button class="btn danger" data-purge="notifications">Bildirimleri sil</button>
+              <button class="btn danger" data-purge="announcements">Duyuruları sil</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/js/haptic.js?v=19"></script>
+  <script src="/js/api.js?v=19"></script>
+  <script src="/js/admin.js?v=16"></script>
+</body>
+</html>

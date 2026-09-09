@@ -1,0 +1,29 @@
+{
+  "name": "s360",
+  "version": "1.0.0",
+  "private": true,
+  "description": "S-360 Özel Güvenlik Yönetim Sistemi — PWA",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "setup": "node src/setup.js",
+    "install:db": "node src/setup.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "bcryptjs": "^3.0.2",
+    "compression": "^1.8.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "web-push": "^3.6.7"
+  }
+}

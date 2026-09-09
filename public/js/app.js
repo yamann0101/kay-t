@@ -1,0 +1,1652 @@
+let me = null;
+let defaultVisitType = "calisma";
+let currentVisitType = "calisma";
+let copyTemplates = {
+  sevkiyat: "SEVKİYAT YAPMAK İÇİN GİRİŞ YAPTI KONTROLLER YAPILDI İLGİLİ KİŞİLER BİLGİLENDİRİLDİ VE GİRİŞ YAPTI",
+  gorusme: "GÖRÜŞME YAPMAK İÇİN GİRİŞ YAPTI KONTROLLER YAPILDI İLGİLİ KİŞİLER BİLGİLENDİRİLDİ VE GİRİŞ YAPTI",
+  calisma: "ÇALIŞMA YAPMAK İÇİN GİRİŞ YAPTI KONTROLLER YAPILDI İLGİLİ KİŞİLER BİLGİLENDİRİLDİ VE GİRİŞ YAPTI",
+};
+let shiftReminders = { enabled: true, morning: "08:00", lunch: "12:00", evening: "18:00" };
+let lastNotifStamp = "";
+
+const FORM_SKIP = new Set(["record_no", "visit_type", "entry_type", "vehicle_status"]);
+
+const FIELD_ICONS = {
+  first_name: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`,
+  last_name: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`,
+  company: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V8l8-4 8 4v13"/><path d="M9 21v-6h6v6"/><path d="M9 10h.01M15 10h.01"/></svg>`,
+  plate: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 13l2-6h14l2 6"/><path d="M5 13h14v6H5z"/><circle cx="7.5" cy="19" r="1.5"/><circle cx="16.5" cy="19" r="1.5"/></svg>`,
+  visit_date: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>`,
+  entry_time: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
+  exit_time: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
+  notes: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3h8l5 5v13H7z"/><path d="M15 3v5h5"/></svg>`,
+  default: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M4 12h16M4 17h10"/></svg>`,
+};
+
+function fieldEl(key) {
+  return document.querySelector(`[name="${key}"]`);
+}
+
+const VISIT_META = {
+  sevkiyat: {
+    title: "Sevkiyat",
+    desc: "Malzeme, araç veya ürün teslimatı için gelen ziyaretçiler.",
+    first: "Ahmet",
+    last: "Yılmaz",
+    company: "ABC Lojistik",
+    notes: "Not ekleyebilirsiniz...",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>`,
+    hint: true,
+    info: true,
+    checkout: true,
+  },
+  gorusme: {
+    title: "Görüşme",
+    desc: "Firma yetkilisi veya personel ile görüşme yapmak için gelen ziyaretçiler.",
+    first: "Mehmet",
+    last: "Kaya",
+    company: "Yaman Group",
+    notes: "Görüşme yapılacak kişi, bölüm vb.",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    hint: true,
+    info: true,
+    checkout: false,
+  },
+  calisma: {
+    title: "Çalışma",
+    desc: "Proje, bakım, onarım veya geçici çalışma için gelen ziyaretçiler.",
+    first: "Emre",
+    last: "Demir",
+    company: "Teknik Yapı A.Ş.",
+    notes: "Çalışma yapılacak alan, kişi, bölüm vb.",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M6 21v-2a4 4 0 0 1 3-3.87"/><path d="M8.2 5.2 6.4 3.6M15.8 5.2 17.6 3.6M12 2.4V1"/><path d="M14.5 21v-2a3.5 3.5 0 0 0-2.2-3.2"/><path d="M4 14h3l1 2h2"/></svg>`,
+    hint: true,
+    info: true,
+    checkout: false,
+  },
+};
+
+function showView(name) {
+  document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+  const el = document.getElementById(`view-${name}`);
+  if (el) el.classList.add("active");
+  document.querySelectorAll(".tab").forEach((t) => {
+    t.classList.toggle("active", name !== "visitor-form" && t.dataset.view === name);
+  });
+  document.querySelectorAll(".drawer nav [data-view]").forEach((b) => {
+    b.classList.toggle("active", b.dataset.view === name);
+  });
+  document.getElementById("openRegisterMenu")?.classList.toggle("active", name === "visitor-form");
+  document.querySelector(".fab-slot")?.classList.toggle("active", name === "visitor-form");
+  document.querySelector(".app-root")?.classList.toggle("reg-mode", name === "visitor-form");
+  closeDrawer();
+  if (name === "keys") loadKeys();
+  if (name === "visitors") loadVisitors();
+  if (name === "alerts") loadAlerts();
+  if (name === "directory") loadDirectory();
+  if (name === "notifications") loadNotifs();
+  if (name === "patrol") loadPatrols();
+  if (name === "announcements") loadAnn();
+}
+
+function closeDrawer() {
+  document.getElementById("drawer").classList.remove("open");
+  document.getElementById("drawerBg").classList.remove("open");
+}
+
+function openDrawer() {
+  document.getElementById("drawer").classList.add("open");
+  document.getElementById("drawerBg").classList.add("open");
+}
+
+document.getElementById("openMenu").onclick = openDrawer;
+document.getElementById("drawerBg").onclick = closeDrawer;
+document.getElementById("openNotif").onclick = () => {
+  showView("notifications");
+  loadNotifs({ markRead: true });
+};
+
+document.querySelectorAll("[data-view]").forEach((btn) => {
+  btn.addEventListener("click", () => showView(btn.dataset.view));
+});
+
+document.getElementById("logoutBtn").onclick = async () => {
+  try {
+    await api("/api/auth/logout", { method: "POST" });
+  } catch {
+    /* ignore */
+  }
+  location.href = "/";
+};
+
+function tickClock() {
+  const p = nowParts();
+  const dateEl = document.getElementById("dateLine");
+  const timeEl = document.getElementById("timeLine");
+  if (dateEl) dateEl.textContent = p.date;
+  if (timeEl) timeEl.textContent = p.time;
+  const d = new Date();
+  const full = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  document.querySelectorAll(".js-date-full").forEach((el) => {
+    el.textContent = full;
+  });
+  document.querySelectorAll(".js-date-week").forEach((el) => {
+    el.textContent = days[d.getDay()];
+  });
+}
+
+function personIcon() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`;
+}
+
+function arrow(dir) {
+  if (dir === "giris") {
+    return `<svg class="dir" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.4"><path d="M7 17L17 7M9 7h8v8"/></svg>`;
+  }
+  return `<svg class="dir" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.4"><path d="M17 7L7 17M15 17H7V9"/></svg>`;
+}
+
+async function loadHome() {
+  const [sum, vis] = await Promise.all([
+    api("/api/app/summary"),
+    api("/api/app/visitors?limit=10"),
+  ]);
+  document.getElementById("st-giris").textContent = sum.giris;
+  document.getElementById("st-cikis").textContent = sum.cikis;
+  document.getElementById("st-iceride").textContent = sum.iceride;
+  document.getElementById("st-gorusme").textContent = sum.gorusme;
+  document.getElementById("st-ziyaretci").textContent = sum.ziyaretci;
+  document.getElementById("st-sevkiyat").textContent = sum.sevkiyat;
+
+  const items = vis.items || [];
+  document.getElementById("moves").innerHTML = items.length
+    ? items
+        .map((v) => {
+          const inside = visInside(v);
+          return `
+      <div class="move">
+        <div class="t">${v.entry_time || fmtTime(v.created_at)}</div>
+        ${arrow(inside ? "giris" : "cikis")}
+        <div class="av">${personIcon()}</div>
+        <div class="nm">${escHtml(v.full_name || "—")}<small>${escHtml(v.company || v.category || "")}</small></div>
+        <div class="move-acts">
+          <button type="button" class="move-btn" data-home-copy="${v.id}">Kopyala</button>
+          <button type="button" class="move-btn" data-home-edit="${v.id}">Düzenle</button>
+          ${
+            inside
+              ? `<button type="button" class="move-btn exit" data-home-exit="${v.id}">Çıkış</button>`
+              : `<span class="act out">Çıktı</span>`
+          }
+        </div>
+      </div>`;
+        })
+        .join("")
+    : `<div class="move"><div class="nm" style="grid-column:1/-1;color:#888;font-weight:500">Henüz hareket yok</div></div>`;
+
+  document.querySelectorAll("[data-home-exit]").forEach((b) => {
+    b.onclick = async () => {
+      await api(`/api/app/visitors/${b.dataset.homeExit}/exit`, { method: "POST" });
+      toast("Çıkış kaydedildi");
+      loadHome();
+    };
+  });
+  document.querySelectorAll("[data-home-copy]").forEach((b) => {
+    b.onclick = () => {
+      const v = items.find((x) => String(x.id) === String(b.dataset.homeCopy));
+      if (v) copyVisitor(v);
+    };
+  });
+  document.querySelectorAll("[data-home-edit]").forEach((b) => {
+    b.onclick = () => openVisitorSheet(b.dataset.homeEdit, "edit");
+  });
+}
+
+function upsertVisitorCache(v) {
+  if (!v?.id) return;
+  const i = visitorCache.findIndex((x) => String(x.id) === String(v.id));
+  if (i >= 0) visitorCache[i] = { ...visitorCache[i], ...v };
+  else visitorCache.unshift(v);
+}
+
+const KEY_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="15" r="4"/><path d="M11.5 13.5L21 4v4"/><path d="M17 8h3"/></svg>`;
+const STAR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.6l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.2 7.2 18.5l.9-5.4L4.2 9.3l5.4-.8z"/></svg>`;
+let keyCache = { items: [], sections: [] };
+let keySectionFilter = "all";
+let keyStatusFilter = "all";
+let keyAccOpen = { fav: true };
+
+function escHtml(v) {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function isFav(k) {
+  return Boolean(k.favorite) || Boolean(k.pinned);
+}
+
+function keyStatusMeta(status) {
+  if (status === "taken") return { label: "Teslimde", cls: "teslim" };
+  if (status === "lost") return { label: "Kayıp / Bakım", cls: "lost" };
+  return { label: "Ofiste", cls: "ofis" };
+}
+
+function keyRowHtml(k) {
+  const st = keyStatusMeta(k.status);
+  const holder = k.holder_name ? ` · ${k.holder_name}` : "";
+  return `
+    <div class="key-row" data-key-id="${k.id}">
+      <div class="ico">${KEY_SVG}</div>
+      <div>
+        <b>${escHtml(k.code)}</b>
+        <small>${escHtml(k.name)}${escHtml(holder)}${k.status === "taken" && k.notify_time ? ` · hatırlatma ${escHtml(k.notify_time)}` : ""}</small>
+      </div>
+      <div class="acts">
+        <div class="btns">
+          <button type="button" class="key-star${k.favorite ? " on" : ""}" data-fav="${k.id}" aria-label="Favori">${STAR_SVG}</button>
+          <span class="key-badge ${st.cls}">${st.label}</span>
+        </div>
+        <div class="btns">
+          <button type="button" class="key-btn" data-act="take" data-key="${k.id}" ${k.status !== "available" ? "disabled" : ""}>Ver</button>
+          <button type="button" class="key-btn" data-act="return" data-key="${k.id}" ${k.status !== "taken" ? "disabled" : ""}>Al</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function filteredKeys() {
+    const q = foldSearch(document.getElementById("keySearch")?.value || "");
+  return (keyCache.items || []).filter((k) => {
+    if (keySectionFilter !== "all" && String(k.section_id || "") !== String(keySectionFilter)) return false;
+    if (keyStatusFilter !== "all" && k.status !== keyStatusFilter) return false;
+    if (!q) return true;
+    const blob = foldSearch(`${k.code} ${k.name} ${k.location || ""} ${k.section_name || ""}`);
+    return blob.includes(q);
+  });
+}
+
+function bindKeyActions(root) {
+  root.querySelectorAll("[data-act]").forEach((b) => {
+    b.onclick = async () => {
+      if (b.disabled) return;
+      if (b.dataset.act === "take") {
+        openKeyTakeSheet(b.dataset.key);
+        return;
+      }
+      try {
+        await api(`/api/app/keys/${b.dataset.key}/${b.dataset.act}`, { method: "POST" });
+        toast("Anahtar iade alındı");
+        loadKeys();
+      } catch (err) {
+        toast(err.message || "İşlem başarısız");
+      }
+    };
+  });
+  root.querySelectorAll("[data-fav]").forEach((b) => {
+    b.onclick = async () => {
+      try {
+        await api(`/api/app/keys/${b.dataset.fav}/favorite`, { method: "POST" });
+        loadKeys();
+      } catch (err) {
+        toast(err.message || "Favori güncellenemedi");
+      }
+    };
+  });
+}
+
+function renderKeys() {
+  const items = filteredKeys();
+  const sections = keyCache.sections || [];
+  const stats = keyCache.items || [];
+  const total = stats.length;
+  const taken = stats.filter((k) => k.status === "taken").length;
+  const office = stats.filter((k) => k.status === "available").length;
+  const lost = stats.filter((k) => k.status === "lost").length;
+  document.getElementById("keyStats").innerHTML = `
+    <div class="key-stat gold"><i>${KEY_SVG}</i><div><b>${total}</b><span>Toplam Anahtar</span></div></div>
+    <div class="key-stat ok"><i>${KEY_SVG}</i><div><b>${taken}</b><span>Teslimde</span></div></div>
+    <div class="key-stat blue"><i>${KEY_SVG}</i><div><b>${office}</b><span>Ofiste</span></div></div>
+    <div class="key-stat bad"><i>${KEY_SVG}</i><div><b>${lost}</b><span>Kayıp / Bakım</span></div></div>`;
+
+  document.getElementById("keyPills").innerHTML = [
+    `<button type="button" class="vis-pill${keySectionFilter === "all" ? " active" : ""}" data-sec="all">${KEY_SVG} Tümü</button>`,
+    ...sections.map(
+      (s) =>
+        `<button type="button" class="vis-pill${String(keySectionFilter) === String(s.id) ? " active" : ""}" data-sec="${s.id}">${KEY_SVG} ${escHtml(s.name)}</button>`
+    ),
+  ].join("");
+  document.querySelectorAll("#keyPills [data-sec]").forEach((b) => {
+    b.onclick = () => {
+      keySectionFilter = b.dataset.sec;
+      renderKeys();
+    };
+  });
+
+  const statusBox = document.getElementById("keyStatusFilters");
+  statusBox.innerHTML = [
+    ["all", "Tümü"],
+    ["available", "Ofiste"],
+    ["taken", "Teslimde"],
+    ["lost", "Kayıp / Bakım"],
+  ]
+    .map(
+      ([id, label]) =>
+        `<button type="button" class="vis-pill${keyStatusFilter === id ? " active" : ""}" data-kst="${id}">${label}</button>`
+    )
+    .join("");
+  statusBox.querySelectorAll("[data-kst]").forEach((b) => {
+    b.onclick = () => {
+      keyStatusFilter = b.dataset.kst;
+      renderKeys();
+    };
+  });
+
+  const favs = items.filter(isFav);
+  const groups = [];
+  for (const s of sections) {
+    const list = items.filter((k) => String(k.section_id || "") === String(s.id));
+    if (list.length) groups.push({ id: s.id, name: s.name, items: list });
+  }
+  const other = items.filter((k) => !k.section_id);
+  if (other.length) groups.push({ id: "other", name: "Diğer", items: other });
+
+  const chev = `<svg class="acc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>`;
+  let html = "";
+  if (favs.length) {
+    const favOpen = keyAccOpen.fav !== false ? " open" : "";
+    html += `<details class="key-acc key-fav" data-acc="fav"${favOpen}>
+      <summary><svg class="acc-ico" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.6l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.2 7.2 18.5l.9-5.4L4.2 9.3l5.4-.8z"/></svg><em>Favori / Sık Kullanılan</em><span>${favs.length} Anahtar</span>${chev}</summary>
+      ${favs.map(keyRowHtml).join("")}
+    </details>`;
+  }
+  if (!items.length) {
+    html += `<div class="key-empty">Anahtar bulunamadı</div>`;
+  } else {
+    html += groups
+      .map((g) => {
+        const title = /anahtar/i.test(g.name) ? g.name : `${g.name} Anahtarları`;
+        const opened = keyAccOpen[g.id] !== false ? " open" : "";
+        return `<details class="key-acc" data-acc="${g.id}"${opened}>
+          <summary><svg class="acc-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="15" r="4"/><path d="M11.5 13.5L21 4v4"/><path d="M17 8h3"/></svg><em>${escHtml(title)}</em><span>${g.items.length} Anahtar</span>${chev}</summary>
+          ${g.items.map(keyRowHtml).join("")}
+        </details>`;
+      })
+      .join("");
+  }
+  const list = document.getElementById("keysList");
+  list.innerHTML = html;
+  list.querySelectorAll("details.key-acc").forEach((d) => {
+    d.addEventListener("toggle", () => {
+      keyAccOpen[d.dataset.acc] = d.open;
+    });
+  });
+  bindKeyActions(list);
+}
+
+async function loadKeys() {
+  const data = await api("/api/app/keys");
+  keyCache = { items: data.items || [], sections: data.sections || [] };
+  renderKeys();
+}
+
+function openKeyTakeSheet(id) {
+  const key = (keyCache.items || []).find((k) => String(k.id) === String(id));
+  openSheet(
+    "Anahtar teslim",
+    `<form class="sheet-form" id="keyTakeForm">
+      <p class="sheet-lead">${escHtml(key ? `${key.code} · ${key.name}` : "Anahtar")}</p>
+      <label>Bildirim saati</label>
+      <input type="time" name="notify_time" value="06:00" />
+      <small>Boş bırakılırsa 06:00. Saat gelince telefon kilitli olsa da sesli bildirim düşer.</small>
+      <button class="sheet-save" type="submit">Teslim Et</button>
+    </form>`
+  );
+  bindUppercase(document.getElementById("sheetBody"));
+  document.getElementById("keyTakeForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const notifyTime = String(fd.get("notify_time") || "").trim() || "06:00";
+    try {
+      await enablePush(true);
+      await api(`/api/app/keys/${id}/take`, { method: "POST", body: { notify_time: notifyTime } });
+      toast(`Teslim edildi · hatırlatma ${notifyTime}`);
+      closeSheet();
+      loadKeys();
+    } catch (err) {
+      toast(err.message || "Teslim başarısız");
+    }
+  };
+}
+
+function openNewKeySheet() {
+  const opts = (keyCache.sections || [])
+    .map((s) => `<option value="${s.id}">${escHtml(s.name)}</option>`)
+    .join("");
+  openSheet(
+    "Yeni Anahtar",
+    `<form class="sheet-form" id="newKeyForm">
+      <label>Numara / Kod</label>
+      <input name="code" placeholder="Ü-1" required />
+      <label>Anahtar adı</label>
+      <input name="name" placeholder="Ana giriş" required />
+      <label>Bölüm</label>
+      <select name="section_id"><option value="">Bölüm seç</option>${opts}</select>
+      <label>Konum</label>
+      <input name="location" />
+      <label class="check-row"><input type="checkbox" name="pinned" /> Sık kullanılanlara ekle</label>
+      <button type="submit" class="sheet-save">Kaydet</button>
+    </form>`
+  );
+  document.getElementById("newKeyForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target).entries());
+    body.pinned = Boolean(body.pinned);
+    body.section_id = body.section_id || null;
+    try {
+      await api("/api/admin/keys", { method: "POST", body });
+      closeSheet();
+      toast("Anahtar eklendi");
+      loadKeys();
+    } catch (err) {
+      toast(err.message || "Eklenemedi");
+    }
+  };
+}
+
+function foldSearch(value) {
+  return String(value || "")
+    .replace(/İ/g, "I")
+    .replace(/ı/g, "I")
+    .replace(/i/g, "I")
+    .replace(/I/g, "I")
+    .replace(/[Şş]/g, "S")
+    .replace(/[Ğğ]/g, "G")
+    .replace(/[Üü]/g, "U")
+    .replace(/[Öö]/g, "O")
+    .replace(/[Çç]/g, "C")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function bindUppercase(root = document) {
+  const skip = new Set(["notes", "message", "password"]);
+  const skipId = new Set(["visSearch", "keySearch", "dirSearch"]);
+  (root.querySelectorAll ? root : document).querySelectorAll("input, textarea").forEach((el) => {
+    if (["password", "date", "time", "hidden", "checkbox", "radio"].includes(el.type)) return;
+    if (skip.has(el.name) || skipId.has(el.id)) return;
+    if (el.dataset.upperBound) return;
+    el.dataset.upperBound = "1";
+    el.addEventListener("input", () => {
+      const s = el.selectionStart;
+      const e = el.selectionEnd;
+      const next = String(el.value || "").toLocaleUpperCase("tr-TR");
+      if (el.value === next) return;
+      el.value = next;
+      try {
+        el.setSelectionRange(s, e);
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+}
+
+const TYPE_TR = { sevkiyat: "Sevkiyat", gorusme: "Görüşme", calisma: "Çalışma" };
+let visitorCache = [];
+let visPage = 1;
+const VIS_PAGE = 8;
+let visTypeFilter = "all";
+let visQuick = "all";
+
+function visTypeOf(v) {
+  if (v.visit_type === "gorusme" || v.visit_type === "calisma" || v.visit_type === "sevkiyat") return v.visit_type;
+  const c = String(v.category || "").toLowerCase();
+  if (c.includes("görüş") || c.includes("gorus")) return "gorusme";
+  if (c.includes("çalış") || c.includes("calis")) return "calisma";
+  return "sevkiyat";
+}
+
+function visInside(v) {
+  return !v.exited_at && !v.exited;
+}
+
+function visToday(v) {
+  const d = new Date();
+  const stamp = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  if (v.last_visit_date && String(v.last_visit_date).includes(stamp.slice(0, 5))) return true;
+  if (v.visit_date && String(v.visit_date).includes(stamp.slice(0, 5))) return true;
+  const created = new Date(v.last_visit_at || v.created_at);
+  return created.toDateString() === d.toDateString();
+}
+
+function visEntry(v) {
+  if (String(v.plate || "").trim()) return "ARAÇLI";
+  const t = String(v.entry_type || "").toLocaleUpperCase("tr-TR");
+  if (t === "ARAÇLI" || t === "ARACLI") return "ARAÇLI";
+  return "YAYAN";
+}
+
+function visEntryKind(v) {
+  return visEntry(v) === "ARAÇLI" ? "car" : "walk";
+}
+
+function visEntryLabel(v) {
+  return visEntryKind(v) === "car" ? "Araçlı giriş" : "Yayan giriş";
+}
+
+function filteredVisitors() {
+  const q = foldSearch(document.getElementById("visSearch")?.value || "");
+  const typeBtn = visTypeFilter || "all";
+  const status = document.getElementById("visStatus")?.value || "all";
+  const entry = document.getElementById("visEntry")?.value || "all";
+  const date = document.getElementById("visDate")?.value || "";
+  const sort = document.getElementById("visSort")?.value || "new";
+  let list = visitorCache.slice();
+  if (typeBtn !== "all") list = list.filter((v) => visTypeOf(v) === typeBtn);
+  if (status === "in" || visQuick === "in") list = list.filter(visInside);
+  if (status === "out") list = list.filter((v) => !visInside(v));
+  if (visQuick === "today") list = list.filter(visToday);
+  if (visQuick === "car" || entry === "ARAÇLI") list = list.filter((v) => visEntryKind(v) === "car");
+  if (visQuick === "walk" || entry === "YAYAN") list = list.filter((v) => visEntryKind(v) === "walk");
+  if (date) {
+    const [y, m, d] = date.split("-");
+    const stamp = `${d}.${m}.${y}`;
+    list = list.filter(
+      (v) =>
+        String(v.last_visit_date || "").includes(stamp) ||
+        String(v.first_visit_date || "").includes(stamp) ||
+        String(v.visit_date || "").includes(stamp) ||
+        String(v.created_at || "").startsWith(date)
+    );
+  }
+  if (q) {
+    list = list.filter((v) =>
+      foldSearch([v.full_name, v.first_name, v.last_name, v.company, v.plate, v.notes, v.host, v.record_no].join(" ")).includes(q)
+    );
+  }
+  list.sort((a, b) => {
+    if (sort === "visits") return (b.visit_count || 0) - (a.visit_count || 0);
+    const da = new Date(a.last_visit_at || a.created_at).getTime();
+    const db = new Date(b.last_visit_at || b.created_at).getTime();
+    return sort === "old" ? da - db : db - da;
+  });
+  return list;
+}
+
+function visIcon(type) {
+  if (type === "gorusme") return VISIT_META.gorusme.icon;
+  if (type === "calisma") return VISIT_META.calisma.icon;
+  return VISIT_META.sevkiyat.icon;
+}
+
+function renderVisitors() {
+  const all = visitorCache;
+  const counts = {
+    all: all.length,
+    sevkiyat: all.filter((v) => visTypeOf(v) === "sevkiyat").length,
+    gorusme: all.filter((v) => visTypeOf(v) === "gorusme").length,
+    calisma: all.filter((v) => visTypeOf(v) === "calisma").length,
+  };
+  const active = visTypeFilter || "all";
+  document.getElementById("visPills").innerHTML = [
+    ["all", "Tümü", counts.all, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`],
+    ["sevkiyat", "Sevkiyat", counts.sevkiyat, visIcon("sevkiyat")],
+    ["gorusme", "Görüşme", counts.gorusme, visIcon("gorusme")],
+    ["calisma", "Çalışma", counts.calisma, visIcon("calisma")],
+  ]
+    .map(
+      ([key, label, n, ico]) =>
+        `<button type="button" class="vis-pill ${active === key ? "active" : ""}" data-type="${key}">${ico}<em>${label}</em><b>${n}</b></button>`
+    )
+    .join("");
+  document.querySelectorAll("#visPills .vis-pill").forEach((b) => {
+    b.onclick = () => {
+      visTypeFilter = b.dataset.type;
+      visPage = 1;
+      renderVisitors();
+    };
+  });
+
+  const inN = all.filter(visInside).length;
+  const todayN = all.filter(visToday).length;
+  const carN = all.filter((v) => visEntryKind(v) === "car").length;
+  const walkN = all.filter((v) => visEntryKind(v) === "walk").length;
+  document.getElementById("visStats").innerHTML = `
+    <button type="button" class="vis-stat in${visQuick === "in" ? " on" : ""}" data-quick="in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><b>${inN}</b><span>İçeride</span></button>
+    <button type="button" class="vis-stat today${visQuick === "today" ? " on" : ""}" data-quick="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><b>${todayN}</b><span>Bugün</span></button>
+    <button type="button" class="vis-stat car${visQuick === "car" ? " on" : ""}" data-quick="car"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 13l2-6h14l2 6"/><path d="M5 13h14v6H5z"/></svg><b>${carN}</b><span>Araçlı</span></button>
+    <button type="button" class="vis-stat walk${visQuick === "walk" ? " on" : ""}" data-quick="walk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 13l2-6h14l2 6"/><path d="M5 13h14v6H5z"/><path d="M4 5l16 14"/></svg><b>${walkN}</b><span>Yayan</span></button>`;
+  document.querySelectorAll("#visStats [data-quick]").forEach((b) => {
+    b.onclick = () => {
+      visQuick = visQuick === b.dataset.quick ? "all" : b.dataset.quick;
+      visPage = 1;
+      renderVisitors();
+    };
+  });
+
+  const list = filteredVisitors();
+  const shown = Math.min(list.length, visPage * VIS_PAGE);
+  const slice = list.slice(0, shown);
+  document.getElementById("visListTitle").textContent = `Son Ziyaretçiler`;
+  const chev = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>`;
+  document.getElementById("visitorsList").innerHTML = slice.length
+    ? slice
+        .map((v) => {
+          const type = visTypeOf(v);
+          const inside = visInside(v);
+          const kind = visEntryKind(v);
+          const when = v.last_visit_date || v.visit_date || "";
+          const t1 = v.entry_time || (v.created_at ? fmtTime(v.created_at) : "");
+          const t2 = v.exit_time || "";
+          return `
+          <article class="vis-card ${type}" data-vis-open="${v.id}">
+            <div class="type">${visIcon(type)}</div>
+            <div class="who">
+              <b>${escHtml(v.full_name || "—")}</b>
+              <small>${escHtml(v.company || "Firma yok")}</small>
+              <div class="meta">
+                ${v.plate ? `<span class="vis-plate">${escHtml(v.plate)}</span>` : `<span class="vis-mode ${kind}">${kind === "car" ? "Araçlı" : "Yayan"}</span>`}
+                <span>${TYPE_TR[type]}</span>
+              </div>
+            </div>
+            <div class="vis-side">
+              <span class="vis-when">${escHtml(when)}${t1 ? `<small>${escHtml(t1)}${t2 ? ` - ${escHtml(t2)}` : ""}</small>` : ""}</span>
+              <span class="vis-badge ${inside ? "in" : "out"}">${inside ? "İçeride" : "Çıktı"}</span>
+              <button type="button" class="vis-copy-mini" data-vis-copy="${v.id}">Kopyala</button>
+              <span class="vis-chev">${chev}</span>
+            </div>
+          </article>`;
+        })
+        .join("")
+    : `<div class="dir-info"><span>Kayıt bulunamadı.</span></div>`;
+
+  document.getElementById("visPager").innerHTML =
+    shown < list.length
+      ? `<button type="button" class="vis-more" id="visMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg> Daha Fazla Göster</button>`
+      : list.length
+        ? `<span>Toplam ${list.length} kişi</span>`
+        : "";
+  document.getElementById("visMore")?.addEventListener("click", () => {
+    visPage += 1;
+    renderVisitors();
+  });
+  document.querySelectorAll("[data-vis-open]").forEach((card) => {
+    card.onclick = (e) => {
+      if (e.target.closest("[data-vis-copy]")) return;
+      openVisitorSheet(card.dataset.visOpen, "detail");
+    };
+  });
+  document.querySelectorAll("[data-vis-copy]").forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const v = visitorCache.find((x) => String(x.id) === String(b.dataset.visCopy));
+      if (v) copyVisitor(v);
+    };
+  });
+}
+
+async function refreshVisitors() {
+  const { items } = await api("/api/app/visitors/people");
+  visitorCache = items || [];
+  renderVisitors();
+}
+
+async function loadVisitors() {
+  await refreshVisitors();
+}
+
+function isoToTr(iso) {
+  const s = String(iso || "");
+  if (!s || !s.includes("-")) return s;
+  const [y, m, d] = s.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+async function loadAlerts() {
+  try {
+    const data = await api("/api/app/alerts");
+    const items = data.items || [];
+    document.getElementById("alertListTitle").textContent = `Beklenen listesi (${items.length})`;
+    document.getElementById("alertsList").innerHTML = items.length
+      ? items
+          .map((a) => {
+            const when = [a.visit_date, a.visit_time].filter(Boolean).join(" · ");
+            const arrived = a.matched_at ? "Geldi" : "Bekleniyor";
+            return `<article class="alert-card">
+              <div class="who">
+                <div class="who-top">
+                  <b>${escHtml(a.full_name)}</b>
+                  <span class="vis-badge ${a.matched_at ? "out" : "in"}">${arrived}</span>
+                </div>
+                <small>${escHtml(a.company || "Firma yok")}</small>
+                <div class="meta">${when ? `<span>${escHtml(when)}</span>` : "<span>Gün/saat yok</span>"}</div>
+                ${a.notes ? `<div class="hist">${escHtml(a.notes)}</div>` : ""}
+              </div>
+              <button type="button" class="vis-act exit" data-alert-del="${a.id}">Sil</button>
+            </article>`;
+          })
+          .join("")
+      : `<div class="dir-info"><span>Henüz beklenen ziyaretçi yok.</span></div>`;
+    document.querySelectorAll("[data-alert-del]").forEach((b) => {
+      b.onclick = async () => {
+        await api(`/api/app/alerts/${b.dataset.alertDel}`, { method: "DELETE" });
+        toast("Kayıt silindi");
+        loadAlerts();
+      };
+    });
+  } catch (err) {
+    toast(err.message || "Liste alınamadı");
+  }
+}
+
+function openSheet(title, html) {
+  document.getElementById("sheetTitle").textContent = title;
+  document.getElementById("sheetBody").innerHTML = html;
+  document.getElementById("sheet").classList.add("open");
+  document.getElementById("sheetBg").classList.remove("hidden");
+}
+
+function closeSheet() {
+  document.getElementById("sheet").classList.remove("open");
+  document.getElementById("sheetBg").classList.add("hidden");
+}
+
+async function getVisitorById(id) {
+  try {
+    const data = await api(`/api/app/visitors/${id}`);
+    return data.item;
+  } catch {
+    return visitorCache.find((x) => String(x.id) === String(id)) || null;
+  }
+}
+
+async function openVisitorSheet(id, mode) {
+  const v = await getVisitorById(id);
+  if (!v) return;
+  if (mode === "detail") {
+    const extra = parseVisitorExtra(v);
+    const comps = Array.isArray(extra.companions) ? extra.companions : v.companions || [];
+    const rows = [
+      ["Kayıt No", v.record_no],
+      ["Ad Soyad", v.full_name],
+      ["Firma", v.company],
+      ["Plaka", v.plate],
+      ["Tür", TYPE_TR[visTypeOf(v)]],
+      ["Giriş Şekli", visEntryLabel(v)],
+      ["Toplam giriş", v.visit_count ? `${v.visit_count}` : ""],
+      ["İlk geliş", v.first_visit_date],
+      ["Son geliş", v.last_visit_date || v.visit_date],
+      ["Son giriş", v.entry_time],
+      ["Çıkış", v.exit_time],
+      ["Durum", visInside(v) ? "İçeride" : "Çıktı"],
+      ["Açıklama", v.notes],
+      ["Ek kişiler", comps.map((c) => `${c.first_name || ""} ${c.last_name || ""}`.trim()).filter(Boolean).join(", ")],
+    ]
+      .filter(([, val]) => val)
+      .map(([k, val]) => `<div><span>${k}</span><b>${escHtml(val)}</b></div>`)
+      .join("");
+    openSheet(
+      "Ziyaretçi Detayı",
+      `<div class="sheet-kv">${rows}</div>
+       <div class="vis-acts" style="margin-top:10px;flex-wrap:wrap">
+         <button type="button" class="vis-act" id="sheetCopyBtn">Kopyala</button>
+         <button type="button" class="vis-act edit" id="sheetEditBtn">Düzenle</button>
+         ${visInside(v) ? `<button type="button" class="vis-act exit" id="sheetExitBtn">Çıkış</button>` : ""}
+       </div>`
+    );
+    document.getElementById("sheetCopyBtn").onclick = () => copyVisitor(v);
+    document.getElementById("sheetEditBtn").onclick = () => openVisitorSheet(id, "edit");
+    document.getElementById("sheetExitBtn")?.addEventListener("click", async () => {
+      await api(`/api/app/visitors/${id}/exit`, { method: "POST" });
+      toast("Çıkış kaydedildi");
+      closeSheet();
+      await refreshVisitors();
+      loadHome();
+    });
+    return;
+  }
+  openSheet(
+    "Ziyaretçi Düzenle",
+    `<form class="sheet-form" id="visEditForm">
+      <label>İsim</label><input name="first_name" value="${escHtml(v.first_name || "")}" />
+      <label>Soyisim</label><input name="last_name" value="${escHtml(v.last_name || "")}" />
+      <label>Firma</label><input name="company" value="${escHtml(v.company || "")}" />
+      <label>Plaka</label><input name="plate" value="${escHtml(v.plate || "")}" />
+      <label>Açıklama</label><textarea name="notes" rows="3">${escHtml(v.notes || "")}</textarea>
+      <button class="sheet-save" type="submit">Kaydet</button>
+    </form>`
+  );
+  document.getElementById("visEditForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target).entries());
+    await api(`/api/app/visitors/${id}`, { method: "PATCH", body });
+    toast("Kayıt güncellendi");
+    closeSheet();
+    await refreshVisitors();
+    loadHome();
+  };
+}
+
+const DIR_GROUPS = [
+  { key: "yonetim", tab: "yonetim", title: "Yönetim Kadrosu", sub: "Proje yönetimi ve idari birimler", units: ["Yönetim", "Merkez", "İdari"] },
+  { key: "guvenlik", tab: "yonetim", title: "Güvenlik Birimi", sub: "Vardiya amirleri ve güvenlik personeli", units: ["Saha", "Güvenlik"] },
+  { key: "teknik", tab: "teknik", title: "Teknik Servis", sub: "Bakım - Onarım - Teknik destek", units: ["Teknik"] },
+  { key: "temizlik", tab: "diger", title: "Temizlik Ekibi", sub: "Temizlik sorumluları", units: ["Temizlik"] },
+  { key: "taseron", tab: "diger", title: "Taşeron Firmalar", sub: "Sahada görev yapan firmalar", units: ["Taşeron"] },
+  { key: "tedarik", tab: "diger", title: "Tedarikçi / Sevkiyat", sub: "Malzeme ve lojistik firmalar", units: ["Tedarikçi"] },
+  { key: "bilgi", tab: "diger", title: "Önemli Bilgiler", sub: "Talimatlar, kurallar, formlar", units: ["Bilgi"] },
+  { key: "acil", tab: "acil", title: "Acil Durum Numaraları", sub: "Hızlı arama için önemli numaralar", units: ["Acil"] },
+];
+
+const DIR_ICONS = {
+  yonetim: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V8l8-4 8 4v13"/><path d="M9 21v-6h6v6"/></svg>`,
+  guvenlik: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>`,
+  teknik: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 7l3 3-8 8H6v-3z"/><path d="M5 20l2-2"/></svg>`,
+  temizlik: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  taseron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/><path d="M8 5l-2-2M16 5l2-2"/></svg>`,
+  tedarik: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>`,
+  bilgi: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h8l5 5v13H7z"/><path d="M15 3v5h5"/></svg>`,
+  acil: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.5a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2.1z"/></svg>`,
+};
+
+const DIR_TABS = [
+  { key: "all", label: "Tümü", icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>` },
+  { key: "yonetim", label: "Yönetim", icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>` },
+  { key: "teknik", label: "Teknik", icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 7l3 3-8 8H6v-3z"/></svg>` },
+  { key: "acil", label: "Acil", icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1A19.5 19.5 0 0 1 3.1 7.9 2 2 0 0 1 5 2h3"/></svg>` },
+  { key: "diger", label: "Diğer", icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg>` },
+];
+
+let dirTab = "all";
+let dirGroup = null;
+let dirPeople = [];
+
+function peopleForGroup(group) {
+  return dirPeople.filter((p) => group.units.includes(p.unit));
+}
+
+function renderDirectory() {
+  document.getElementById("dirCats").innerHTML = DIR_TABS.map(
+    (t) =>
+      `<button type="button" class="dir-cat ${dirTab === t.key ? "active" : ""}" data-dir-tab="${t.key}"><i>${t.icon}</i>${t.label}</button>`
+  ).join("");
+  document.querySelectorAll("[data-dir-tab]").forEach((b) => {
+    b.onclick = () => {
+      dirTab = b.dataset.dirTab;
+      dirGroup = null;
+      renderDirectory();
+    };
+  });
+  const q = String(document.getElementById("dirSearch")?.value || "").trim().toLocaleLowerCase("tr-TR");
+  if (dirGroup) {
+    let people = peopleForGroup(dirGroup);
+    if (q) {
+      people = people.filter((p) =>
+        [p.name, p.title, p.phone, p.unit].join(" ").toLocaleLowerCase("tr-TR").includes(q)
+      );
+    }
+    document.getElementById("contactsList").innerHTML = people.length
+      ? people
+          .map(
+            (p) => `
+          <div class="dir-tile dir-person">
+            <div class="av">${String(p.name || "?").slice(0, 1)}</div>
+            <div><b>${p.name}</b><span>${p.title || ""} ${p.unit ? "· " + p.unit : ""}</span></div>
+            ${p.phone ? `<a class="dir-call" href="tel:${p.phone}">Ara</a>` : ""}
+          </div>`
+          )
+          .join("")
+      : `<div class="dir-info"><span>Bu birimde kayıt yok.</span></div>`;
+    return;
+  }
+  let groups = DIR_GROUPS.filter((g) => dirTab === "all" || g.tab === dirTab);
+  if (q) {
+    const peopleHits = dirPeople.filter((p) =>
+      [p.name, p.title, p.phone, p.unit].join(" ").toLocaleLowerCase("tr-TR").includes(q)
+    );
+    groups = groups.filter(
+      (g) =>
+        g.title.toLocaleLowerCase("tr-TR").includes(q) ||
+        g.sub.toLocaleLowerCase("tr-TR").includes(q) ||
+        peopleHits.some((p) => g.units.includes(p.unit))
+    );
+  }
+  document.getElementById("contactsList").innerHTML = groups
+    .map(
+      (g) => `
+      <button type="button" class="dir-tile" data-dir-group="${g.key}">
+        <div class="ico">${DIR_ICONS[g.key]}</div>
+        <div><b>${g.title}</b><span>${g.sub}</span></div>
+        <span class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></span>
+      </button>`
+    )
+    .join("");
+  document.querySelectorAll("[data-dir-group]").forEach((b) => {
+    b.onclick = () => {
+      dirGroup = DIR_GROUPS.find((g) => g.key === b.dataset.dirGroup);
+      renderDirectory();
+    };
+  });
+}
+
+async function loadDirectory() {
+  try {
+    const { items } = await api("/api/app/contacts");
+    dirPeople = items || [];
+  } catch {
+    dirPeople = [];
+  }
+  dirGroup = null;
+  dirTab = "all";
+  renderDirectory();
+}
+
+async function loadNotifs(opts = {}) {
+  const { items } = await api("/api/app/notifications");
+  document.getElementById("notifList").innerHTML = items.length
+    ? items
+        .map(
+          (n) => `
+        <div class="item-row">
+          <div><b>${escHtml(n.title)}</b><span>${escHtml(n.body)}</span></div>
+          <span class="pill">${fmtDateTime(n.created_at)}</span>
+        </div>`
+        )
+        .join("")
+    : `<div class="item-row"><span>Bildirim yok</span></div>`;
+  const lastRead = localStorage.getItem("s360_notif_read") || "";
+  const unread = items.some((n) => String(n.created_at || "") > lastRead);
+  document.getElementById("notifDot").style.display = unread ? "block" : "none";
+  const newest = items[0]?.created_at || "";
+  if (lastNotifStamp && newest && newest > lastNotifStamp) {
+    document.getElementById("openNotif")?.classList.add("ring");
+    if (window.haptic) window.haptic("ok");
+    setTimeout(() => document.getElementById("openNotif")?.classList.remove("ring"), 2800);
+  }
+  if (newest) lastNotifStamp = newest;
+  if (opts.markRead) {
+    if (newest) localStorage.setItem("s360_notif_read", newest);
+    document.getElementById("notifDot").style.display = "none";
+    await api("/api/app/notifications/read-all", { method: "POST" });
+  }
+}
+
+function visitorPeopleNames(v) {
+  const names = [];
+  const lead = String(v.full_name || `${v.first_name || ""} ${v.last_name || ""}`).trim();
+  if (lead) names.push(lead);
+  const extra = parseVisitorExtra(v);
+  const comps = Array.isArray(v.companions) ? v.companions : extra.companions || [];
+  for (const c of comps) {
+    const n = `${c.first_name || ""} ${c.last_name || ""}`.trim();
+    if (n && !names.includes(n)) names.push(n);
+  }
+  return names;
+}
+
+function copyVisitorText(v) {
+  const type = visTypeOf(v);
+  const names = visitorPeopleNames(v);
+  let desc = copyTemplates[type] || copyTemplates.calisma || "";
+  if (names.length > 1) desc = desc.replace(/YAPTI(?!LAR)/gi, "YAPTILAR");
+  desc = sentenceCaseTr(desc);
+  const time = v.entry_time || (v.created_at ? fmtTime(v.created_at) : "");
+  return [
+    `FİRMA: ${v.company || "-"}`,
+    ...names,
+    `GİRİŞ SAATİ: ${time}`.trim(),
+    `AÇIKLAMA: ${desc}`,
+  ].join("\n");
+}
+
+function sentenceCaseTr(s) {
+  const t = String(s || "").trim();
+  if (!t) return "";
+  const lower = t.toLocaleLowerCase("tr-TR");
+  return lower.charAt(0).toLocaleUpperCase("tr-TR") + lower.slice(1);
+}
+
+async function copyVisitor(v) {
+  const text = copyVisitorText(v);
+  let ok = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }
+  } catch {
+    ok = false;
+  }
+  if (!ok) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;left:-9999px;top:0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ok = document.execCommand("copy");
+      ta.remove();
+    } catch {
+      ok = false;
+    }
+  }
+  if (ok) {
+    toast("Kopyalandı");
+    if (window.haptic) window.haptic("ok");
+  } else {
+    toast("Kopyalanamadı");
+  }
+}
+
+function checkShiftTicker() {
+  const el = document.getElementById("homeTicker");
+  if (!el) return;
+  if (shiftReminders.enabled === false) {
+    el.classList.add("hidden");
+    return;
+  }
+  const d = new Date();
+  const nowMin = d.getHours() * 60 + d.getMinutes();
+  const slots = [
+    [shiftReminders.morning, shiftReminders.morning_text || "İş başı — hayırlı sabahlar"],
+    [shiftReminders.lunch, shiftReminders.lunch_text || "Öğle molası"],
+    [shiftReminders.evening, shiftReminders.evening_text || "Mesai bitişi"],
+  ];
+  const hit = slots.find(([t]) => {
+    const s = String(t || "").slice(0, 5);
+    const m = s.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return false;
+    const slot = Number(m[1]) * 60 + Number(m[2]);
+    return nowMin >= slot && nowMin < slot + 3;
+  });
+  if (!hit) {
+    if (!el.dataset.hold) el.classList.add("hidden");
+    return;
+  }
+  const stamp = String(hit[0]).slice(0, 5);
+  if (el.dataset.shown === stamp) return;
+  el.dataset.shown = stamp;
+  el.dataset.hold = "1";
+  el.textContent = hit[1];
+  el.classList.remove("hidden");
+  setTimeout(() => {
+    el.classList.add("hidden");
+    el.dataset.hold = "";
+  }, 45000);
+}
+
+async function loadPatrols() {
+  const { items } = await api("/api/app/patrols");
+  document.getElementById("patrolList").innerHTML = items
+    .map(
+      (p) => `
+      <div class="item-row">
+        <div><b>${p.name}</b><span>${p.checkpoint}</span></div>
+        ${
+          p.status === "done"
+            ? `<span class="pill ok">Tamam</span>`
+            : `<button class="btn-gold" style="width:auto;height:34px;padding:0 10px;font-size:12px" data-patrol="${p.id}">İşaretle</button>`
+        }
+      </div>`
+    )
+    .join("");
+  document.querySelectorAll("[data-patrol]").forEach((b) => {
+    b.onclick = async () => {
+      await api(`/api/app/patrols/${b.dataset.patrol}/check`, { method: "POST" });
+      toast("Devriye işaretlendi");
+      loadPatrols();
+    };
+  });
+}
+
+async function loadAnn() {
+  const { items } = await api("/api/app/announcements");
+  document.getElementById("annList").innerHTML = items
+    .map(
+      (a) => `
+      <div class="item-row">
+        <div><b>${a.title}</b><span>${a.body}</span></div>
+      </div>`
+    )
+    .join("");
+}
+
+async function loadSettings() {
+  try {
+    const s = await api("/api/app/settings");
+    defaultVisitType = s.default_visitor_type || "sevkiyat";
+    visitorFields = Array.isArray(s.visitor_fields) ? s.visitor_fields : [];
+    if (s.copy_templates) copyTemplates = { ...copyTemplates, ...s.copy_templates };
+    if (s.shift_reminders) shiftReminders = { ...shiftReminders, ...s.shift_reminders };
+  } catch {
+    defaultVisitType = "sevkiyat";
+  }
+}
+
+function fieldHtml(f, meta) {
+  const id = `vf-${f.key}`;
+  const ph =
+    f.key === "first_name" ? meta.first :
+    f.key === "last_name" ? meta.last :
+    f.key === "company" ? meta.company :
+    f.key === "notes" ? meta.notes :
+    f.key === "plate" ? "34 ABC 123" :
+    f.key === "visit_date" ? "08.09.2026" :
+    f.key === "entry_time" ? "09:15" : "";
+  const req = f.required ? " required" : "";
+  const star = f.required ? " <i>*</i>" : "";
+  const icon = FIELD_ICONS[f.key] || FIELD_ICONS.default;
+  const clr = f.type === "textarea" ? "" : `<button type="button" class="clr" data-clear="${id}">×</button>`;
+  const suggest = ["first_name", "last_name", "company", "plate"].includes(f.key);
+  const hint =
+    f.key === "visit_date" || f.key === "entry_time"
+      ? `<small class="reg-note">Otomatik dolar, isterseniz değiştirebilirsiniz.</small>`
+      : "";
+  const input =
+    f.type === "textarea"
+      ? `<textarea name="${f.key}" id="${id}" rows="2" placeholder="${ph}"${req}></textarea>`
+      : `<input name="${f.key}" id="${id}" placeholder="${ph}" autocomplete="off"${req} ${suggest ? `data-suggest="${f.key}"` : ""} />`;
+  return `
+    <label class="reg-field">
+      <span>${f.label}${star}</span>
+      ${suggest ? `<div class="suggest-box hidden" data-suggest-for="${f.key}"></div>` : ""}
+      <div class="reg-input${f.type === "textarea" ? " area" : ""}">
+        ${icon}
+        ${input}
+        ${clr}
+      </div>
+      ${hint}
+    </label>`;
+}
+
+function companionBlock() {
+  return `
+    <div class="companion-wrap" id="companionWrap">
+      <div id="companionList"></div>
+      <button type="button" class="companion-add" id="addCompanionBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Kişi Ekle
+      </button>
+    </div>`;
+}
+
+function companionRowHtml(c = {}) {
+  return `
+    <div class="companion-row">
+      <input data-cf placeholder="İsim" value="${escHtml(c.first_name || "")}" />
+      <input data-cl placeholder="Soyisim" value="${escHtml(c.last_name || "")}" />
+      <button type="button" class="companion-del" aria-label="Kaldır">×</button>
+    </div>`;
+}
+
+function bindCompanionRows() {
+  document.querySelectorAll(".companion-del").forEach((b) => {
+    b.onclick = () => {
+      b.closest(".companion-row")?.remove();
+    };
+  });
+}
+
+function setCompanions(list) {
+  const box = document.getElementById("companionList");
+  if (!box) return;
+  box.innerHTML = (list || []).map((c) => companionRowHtml(c)).join("");
+  bindCompanionRows();
+}
+
+function readCompanions() {
+  return [...document.querySelectorAll(".companion-row")]
+    .map((row) => ({
+      first_name: String(row.querySelector("[data-cf]")?.value || "").trim(),
+      last_name: String(row.querySelector("[data-cl]")?.value || "").trim(),
+    }))
+    .filter((c) => c.first_name || c.last_name);
+}
+
+function parseVisitorExtra(v) {
+  if (!v) return {};
+  if (v.extra && typeof v.extra === "object" && !Array.isArray(v.extra)) return v.extra;
+  if (typeof v.extra === "string") {
+    try {
+      return JSON.parse(v.extra) || {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+let suggestTimer = null;
+let suggestLock = false;
+
+function hideSuggest(key) {
+  const box = document.querySelector(`[data-suggest-for="${key}"]`);
+  if (box) box.classList.add("hidden");
+}
+
+function hideAllSuggest() {
+  document.querySelectorAll(".suggest-box").forEach((el) => el.classList.add("hidden"));
+}
+
+function applySuggestion(item) {
+  suggestLock = true;
+  hideAllSuggest();
+  if (item.visit_type && VISIT_META[item.visit_type]) setVisitTab(item.visit_type);
+  const set = (key, val) => {
+    const el = fieldEl(key);
+    if (el && val != null) el.value = val;
+  };
+  set("first_name", (item.first_name || "").toLocaleUpperCase("tr-TR"));
+  set("last_name", (item.last_name || "").toLocaleUpperCase("tr-TR"));
+  set("company", (item.company || "").toLocaleUpperCase("tr-TR"));
+  set("plate", (item.plate || "").toLocaleUpperCase("tr-TR"));
+  if (item.phone) set("phone", item.phone);
+  if (item.host) set("host", item.host);
+  if (item.notes) set("notes", item.notes);
+  const comps = Array.isArray(item.companions) ? item.companions : parseVisitorExtra(item).companions;
+  setCompanions(comps || []);
+  fillNowFields();
+  const outEl = fieldEl("exit_time");
+  if (outEl) outEl.value = "";
+  syncEntryType();
+  setTimeout(() => {
+    suggestLock = false;
+  }, 300);
+}
+
+async function runSuggest(field, value) {
+  const q = String(value || "").trim();
+  const box = document.querySelector(`[data-suggest-for="${field}"]`);
+  if (!box) return;
+  if (suggestLock || q.length < 1) {
+    box.classList.add("hidden");
+    return;
+  }
+  try {
+    const { items } = await api(`/api/app/visitors/suggest?q=${encodeURIComponent(q)}&field=${encodeURIComponent(field)}`);
+    if (!items?.length) {
+      box.classList.add("hidden");
+      return;
+    }
+    box.innerHTML = items
+      .map((it) => {
+        const extra = (it.companions || []).length ? ` · +${it.companions.length} kişi` : "";
+        return `<button type="button" class="suggest-item" data-sid="${it.id}">
+          <b>${escHtml(it.full_name || `${it.first_name || ""} ${it.last_name || ""}`)}</b>
+          <span>${escHtml([it.company, it.plate].filter(Boolean).join(" · "))}${extra}</span>
+        </button>`;
+      })
+      .join("");
+    box.classList.remove("hidden");
+    box.querySelectorAll(".suggest-item").forEach((btn) => {
+      btn.onmousedown = (e) => e.preventDefault();
+      btn.onclick = () => {
+        const item = items.find((x) => String(x.id) === String(btn.dataset.sid));
+        if (item) applySuggestion(item);
+      };
+    });
+  } catch {
+    box.classList.add("hidden");
+  }
+}
+
+function bindSuggest() {
+  ["first_name", "last_name", "company", "plate"].forEach((key) => {
+    const el = fieldEl(key);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      if (suggestLock) return;
+      clearTimeout(suggestTimer);
+      suggestTimer = setTimeout(() => runSuggest(key, el.value), 180);
+    });
+    el.addEventListener("blur", () => setTimeout(() => hideSuggest(key), 180));
+  });
+}
+
+function renderRegFields() {
+  const meta = VISIT_META[currentVisitType] || VISIT_META.calisma;
+  const list = (visitorFields || []).filter((f) => f.enabled && !FORM_SKIP.has(f.key));
+  const html = [];
+  let i = 0;
+  let plateHintDone = false;
+  let companionDone = false;
+  while (i < list.length) {
+    const f = list[i];
+    const next = list[i + 1];
+    const pair = f.type !== "textarea" && next && next.type !== "textarea";
+    if (pair) {
+      html.push(`<div class="reg-grid">${fieldHtml(f, meta)}${fieldHtml(next, meta)}</div>`);
+      if (!companionDone && [f.key, next.key].includes("last_name")) {
+        html.push(companionBlock());
+        companionDone = true;
+      }
+      if (!plateHintDone && (f.key === "plate" || next.key === "plate")) {
+        html.push(`<small class="reg-hint" id="plateHint">Plaka yoksa yayan giriş, varsa araçlı giriş kaydedilir.</small>`);
+        plateHintDone = true;
+      }
+      i += 2;
+    } else {
+      html.push(fieldHtml(f, meta));
+      if (!companionDone && (f.key === "last_name" || f.key === "first_name")) {
+        html.push(companionBlock());
+        companionDone = true;
+      }
+      if (!plateHintDone && f.key === "plate") {
+        html.push(`<small class="reg-hint" id="plateHint">Plaka yoksa yayan giriş, varsa araçlı giriş kaydedilir.</small>`);
+        plateHintDone = true;
+      }
+      i += 1;
+    }
+  }
+  if (!companionDone) html.push(companionBlock());
+  html.push(`
+    <label class="reg-check" id="exitCheckWrap" style="display:none">
+      <input type="checkbox" name="exited" id="vExited" />
+      <div>
+        <b>Çıkış Yapıldı</b>
+        <span>Ziyaret çıkışında işaretleyin.</span>
+      </div>
+    </label>
+    <div class="reg-info" id="regInfo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+      <span>Plaka girilmediyse yayan giriş, plaka varsa araçlı giriş olarak kaydedilir.</span>
+    </div>`);
+  document.getElementById("regFields").innerHTML = html.join("");
+  document.querySelectorAll("[data-clear]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const el = document.getElementById(btn.dataset.clear);
+      if (el) el.value = "";
+      el?.focus();
+      if (btn.dataset.clear === "vf-plate") syncEntryType();
+      hideAllSuggest();
+    });
+  });
+  fieldEl("plate")?.addEventListener("input", syncEntryType);
+  document.getElementById("addCompanionBtn")?.addEventListener("click", () => {
+    const box = document.getElementById("companionList");
+    if (!box) return;
+    box.insertAdjacentHTML("beforeend", companionRowHtml());
+    bindCompanionRows();
+    bindUppercase(box.querySelector(".companion-row:last-child"));
+    box.querySelector(".companion-row:last-child [data-cf]")?.focus();
+  });
+  bindSuggest();
+  bindUppercase(document.getElementById("regFields"));
+}
+
+function fillNowFields() {
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dateEl = fieldEl("visit_date");
+  const inEl = fieldEl("entry_time");
+  const outEl = fieldEl("exit_time");
+  if (dateEl) dateEl.value = `${dd}.${mm}.${d.getFullYear()}`;
+  if (inEl) {
+    inEl.value = d.toLocaleTimeString("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+  if (outEl) outEl.value = "";
+  const p = nowParts();
+  document.getElementById("regDateDay").textContent = p.date;
+  document.getElementById("regDateWeek").textContent = days[d.getDay()];
+  syncEntryType();
+}
+
+function syncEntryType() {
+  const plate = String(fieldEl("plate")?.value || "").trim();
+  const status = plate ? "ARAÇLI" : "YAYAN";
+  document.getElementById("entryType").value = status;
+  document.getElementById("vehicleStatus").value = status;
+}
+
+function setVisitTab(type) {
+  currentVisitType = VISIT_META[type] ? type : "sevkiyat";
+  const meta = VISIT_META[currentVisitType];
+  document.getElementById("visitType").value = currentVisitType;
+  document.querySelectorAll(".reg-tab").forEach((t) => {
+    t.classList.toggle("active", t.dataset.type === currentVisitType);
+  });
+  document.getElementById("regTypeTitle").textContent = meta.title;
+  document.getElementById("regTypeDesc").textContent = meta.desc;
+  document.getElementById("regTypeIco").innerHTML = meta.icon;
+  const first = fieldEl("first_name");
+  const last = fieldEl("last_name");
+  const company = fieldEl("company");
+  const notes = fieldEl("notes");
+  if (first) first.placeholder = meta.first;
+  if (last) last.placeholder = meta.last;
+  if (company) company.placeholder = meta.company;
+  if (notes) notes.placeholder = meta.notes;
+  const wrap = document.getElementById("exitCheckWrap");
+  if (wrap) wrap.style.display = meta.checkout ? "flex" : "none";
+  const exited = document.getElementById("vExited");
+  if (!meta.checkout && exited) exited.checked = false;
+  const hint = document.getElementById("plateHint");
+  const info = document.getElementById("regInfo");
+  if (hint) hint.style.display = meta.hint && fieldEl("plate") ? "" : "none";
+  if (info) info.style.display = meta.info && fieldEl("plate") ? "" : "none";
+}
+
+async function openVisitorRegister() {
+  await loadSettings();
+  document.getElementById("visitorForm").reset();
+  renderRegFields();
+  fillNowFields();
+  setVisitTab("calisma");
+  try {
+    const n = await api("/api/app/visitors/next-no");
+    document.getElementById("regNo").textContent = `#${n.record_no}`;
+  } catch {
+    document.getElementById("regNo").textContent = "#ZK-0001";
+  }
+  showView("visitor-form");
+}
+
+document.querySelectorAll(".reg-tab").forEach((btn) => {
+  btn.addEventListener("click", () => setVisitTab(btn.dataset.type));
+});
+document.getElementById("fabRegister").onclick = () => openVisitorRegister();
+document.getElementById("openRegisterMenu").onclick = () => openVisitorRegister();
+document.getElementById("regBack").onclick = () => showView("home");
+
+document.getElementById("visitorForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  syncEntryType();
+  const fd = new FormData(e.target);
+  const body = Object.fromEntries(fd.entries());
+  body.visit_type = currentVisitType;
+  body.exited = Boolean(document.getElementById("vExited")?.checked);
+  body.plate = String(body.plate || "").trim();
+  body.entry_type = body.plate ? "ARAÇLI" : "YAYAN";
+  body.vehicle_status = body.entry_type;
+  body.companions = readCompanions();
+  try {
+    const data = await api("/api/app/visitors", { method: "POST", body });
+    const extra = body.companions.length ? ` (+${body.companions.length} kişi)` : "";
+    const alertN = (data.alerts || []).length;
+    toast(
+      alertN
+        ? `Beklenen ziyaretçi geldi · bildirim gönderildi${extra}`
+        : body.entry_type === "ARAÇLI"
+          ? `Araçlı giriş kaydedildi${extra}`
+          : `Yayan giriş kaydedildi${extra}`
+    );
+    e.target.reset();
+    showView("home");
+    loadHome();
+  } catch (err) {
+    toast(err.message || "Kayıt başarısız");
+  }
+});
+
+document.getElementById("visOpenMenu").onclick = openDrawer;
+document.getElementById("alertOpenMenu").onclick = openDrawer;
+document.getElementById("alertForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = {
+    full_name: String(fd.get("full_name") || "").trim(),
+    company: String(fd.get("company") || "").trim(),
+    visit_date: isoToTr(fd.get("visit_date")),
+    visit_time: String(fd.get("visit_time") || "").trim(),
+    notes: String(fd.get("notes") || "").trim(),
+  };
+  if (!body.full_name) return toast("İsim gerekli");
+  try {
+    await enablePush(true);
+    await api("/api/app/alerts", { method: "POST", body });
+    toast("Haber verildi · bildirim gönderildi");
+    e.target.reset();
+    loadAlerts();
+  } catch (err) {
+    toast(err.message || "Kayıt başarısız");
+  }
+});
+document.getElementById("keyOpenMenu").onclick = openDrawer;
+document.getElementById("keyNewBtn").onclick = openNewKeySheet;
+document.getElementById("keySearch").addEventListener("input", renderKeys);
+document.getElementById("keyFilterBtn").onclick = () => {
+  document.getElementById("keyStatusFilters").classList.toggle("hidden");
+};
+document.querySelector(".drawer .who").onclick = () => showView("profile");
+document.getElementById("visNewBtn").onclick = () => openVisitorRegister();
+document.getElementById("visFilterToggle").onclick = () => {
+  const box = document.getElementById("visFilters");
+  box.classList.toggle("hidden");
+  document.getElementById("visFilterToggle").classList.toggle("on", !box.classList.contains("hidden"));
+};
+document.getElementById("visSearch").addEventListener("input", () => {
+  visPage = 1;
+  renderVisitors();
+});
+["visStatus", "visEntry", "visDate", "visSort"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", () => {
+    visPage = 1;
+    renderVisitors();
+  });
+});
+document.getElementById("visClear").onclick = () => {
+  document.getElementById("visSearch").value = "";
+  document.getElementById("visStatus").value = "all";
+  document.getElementById("visEntry").value = "all";
+  document.getElementById("visDate").value = "";
+  document.getElementById("visSort").value = "new";
+  visTypeFilter = "all";
+  visQuick = "all";
+  visPage = 1;
+  renderVisitors();
+};
+document.getElementById("dirBack").onclick = () => {
+  if (dirGroup) {
+    dirGroup = null;
+    renderDirectory();
+    return;
+  }
+  showView("home");
+};
+document.getElementById("dirSearch").addEventListener("input", renderDirectory);
+document.getElementById("sheetClose").onclick = closeSheet;
+document.getElementById("sheetBg").onclick = closeSheet;
+
+document.getElementById("emergencyForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await api("/api/app/emergency", { method: "POST", body: { message: fd.get("message") } });
+  toast("Acil bildirim gönderildi");
+});
+
+async function enablePush(force) {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      if (force) toast("Bu tarayıcı bildirimi desteklemiyor");
+      return false;
+    }
+    const { publicKey } = await api("/api/auth/vapid");
+    const reg = await navigator.serviceWorker.ready;
+    let perm = Notification.permission;
+    if (perm !== "granted") {
+      perm = await Notification.requestPermission();
+    }
+    if (perm !== "granted") {
+      if (force) toast("Bildirim izni verilmedi");
+      return false;
+    }
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
+    await api("/api/app/push/subscribe", { method: "POST", body: sub });
+    return true;
+  } catch {
+    if (force) toast("Bildirim açılamadı");
+    return false;
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+async function boot() {
+  try {
+    const data = await api("/api/auth/me");
+    me = data.user;
+  } catch {
+    location.href = "/";
+    return;
+  }
+  const roleLabel =
+    me.role === "admin" ? "Yönetici" : me.role === "supervisor" ? "Süpervizör" : "Güvenlik Görevlisi";
+  document.getElementById("helloName").textContent = me.full_name;
+  document.getElementById("drawerName").textContent = me.full_name;
+  document.getElementById("drawerRole").textContent = roleLabel;
+  document.getElementById("whoAv").textContent = String(me.full_name || "S")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+  const profileName = document.getElementById("profileName");
+  const profileRole = document.getElementById("profileRole");
+  if (profileName) profileName.textContent = me.full_name;
+  if (profileRole) profileRole.textContent = roleLabel;
+  if (me.role === "admin") {
+    document.getElementById("adminLink").classList.remove("hidden");
+    document.getElementById("keyNewBtn").classList.remove("hidden");
+  }
+  tickClock();
+  setInterval(tickClock, 30_000);
+  await loadSettings();
+  await loadHome();
+  await loadNotifs();
+  enablePush();
+  bindUppercase(document);
+  checkShiftTicker();
+  setInterval(() => {
+    loadNotifs().catch(() => {});
+    checkShiftTicker();
+  }, 15_000);
+  document.getElementById("enableNotifBtn")?.addEventListener("click", async () => {
+    const ok = await enablePush(true);
+    if (ok) toast("Bildirim izni açıldı");
+  });
+}
+
+boot();

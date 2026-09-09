@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <title>S-360 · Ana Sayfa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/tokens.css?v=40" />
+  <link rel="stylesheet" href="/css/app.css?v=40" />
+  <link rel="stylesheet" href="/css/login.css?v=40" />
+</head>
+<body class="framed">
+  <div class="phone-shell app-root">
+    <div class="app-scroll">
+    <header class="app-header">
+      <button id="openMenu" aria-label="Menü">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="brand-mini">
+        <strong class="gold-text">S-360</strong>
+        <em>GÜVENLİ DAHA YARINLAR</em>
+      </div>
+      <button class="bell" id="openNotif" aria-label="Bildirimler">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <i class="dot" id="notifDot"></i>
+      </button>
+    </header>
+
+    <section class="view active" id="view-home">
+      <div id="homeTicker" class="home-ticker hidden"></div>
+      <div class="hello">
+        <div>
+          <h2>Merhaba, <b id="helloName">...</b></h2>
+          <p>Görevde olduğun her an, güven daha güçlü.</p>
+        </div>
+        <div class="date-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+          <div>
+            <strong id="dateLine">—</strong>
+            <span id="timeLine">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat g"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"/></svg></div><div class="meta"><span>Giriş</span><b id="st-giris">0</b></div></div>
+        <div class="stat r"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H3v-6"/><path d="M14 10L3 21"/><path d="M21 10V4a1 1 0 0 0-1-1H8"/></svg></div><div class="meta"><span>Çıkış</span><b id="st-cikis">0</b></div></div>
+        <div class="stat b"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="meta"><span>İçeride</span><b id="st-iceride">0</b></div></div>
+        <div class="stat o"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg></div><div class="meta"><span>Görüşme</span><b id="st-gorusme">0</b></div></div>
+        <div class="stat p"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div><div class="meta"><span>Ziyaretçi</span><b id="st-ziyaretci">0</b></div></div>
+        <div class="stat c"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></div><div class="meta"><span>Sevkiyat</span><b id="st-sevkiyat">0</b></div></div>
+      </div>
+
+      <div class="section moves-sec">
+        <div class="section-h">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <h3>Son Hareketler</h3>
+          <button data-view="visitors">Tümünü Gör &gt;</button>
+        </div>
+        <div class="activity" id="moves"></div>
+      </div>
+
+      <div class="section quick-sec">
+        <div class="section-h">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 10-14h-7z"/></svg>
+          <h3>Hızlı İşlemler</h3>
+        </div>
+        <div class="quick">
+          <button class="qcard danger" data-view="emergency">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3c3 4 6 6 6 10a6 6 0 1 1-12 0c0-4 3-6 6-10z"/><path d="M12 13v.01"/></svg>
+            <div><b>Acil Durum</b><span>Hızlı Bildirim Gönder</span></div>
+          </button>
+          <button class="qcard" data-view="patrol">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/></svg>
+            <div><b>Devriye</b><span>Devriye Noktaları</span></div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-keys">
+      <header class="page-top">
+        <button type="button" class="page-icon" id="keyOpenMenu" aria-label="Menü">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div class="page-brand">
+          <svg class="page-shield" viewBox="0 0 128 128">
+            <defs>
+              <linearGradient id="keyGold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fff3c4"/>
+                <stop offset="45%" stop-color="#e0b84a"/>
+                <stop offset="100%" stop-color="#8a6a12"/>
+              </linearGradient>
+            </defs>
+            <circle cx="64" cy="64" r="56" fill="url(#keyGold)"/>
+            <path d="M64 26c-16 4-28 6-28 6v32c0 22 13 34 28 42 15-8 28-20 28-42V32s-12-2-28-6z" fill="#0c0c0c"/>
+            <polygon points="64,46 69,59 83,60 72,69 76,83 64,75 52,83 56,69 45,60 59,59" fill="url(#keyGold)"/>
+          </svg>
+          <strong class="gold-text">S-360</strong>
+          <em>GÜVENLİ DAHA YARINLAR</em>
+        </div>
+        <div class="date-chip page-date">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+          <div>
+            <strong class="js-date-full">—</strong>
+            <span class="js-date-week">—</span>
+          </div>
+        </div>
+      </header>
+      <div class="page-body key-page">
+        <div class="page-title-row">
+          <div>
+            <h2 class="key-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="15" r="4"/><path d="M11.5 13.5L21 4v4"/><path d="M17 8h3"/></svg> Anahtar Teslim</h2>
+            <p>Anahtar teslim ve iade işlemlerini yönetin.</p>
+          </div>
+          <button type="button" class="vis-new hidden" id="keyNewBtn">+ Yeni Anahtar</button>
+        </div>
+        <div class="key-stats" id="keyStats"></div>
+        <div class="key-search-row">
+          <div class="gold-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+            <input id="keySearch" placeholder="Anahtar adı, numara veya bölüm ara..." />
+          </div>
+          <button type="button" class="key-filter-btn" id="keyFilterBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16l-6 7v5l-4 2v-7z"/></svg>
+            Filtrele
+          </button>
+        </div>
+        <div class="key-status-filters hidden" id="keyStatusFilters"></div>
+        <div class="vis-pills key-pills" id="keyPills"></div>
+        <div id="keysList" class="key-list"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-visitors">
+      <header class="page-top">
+        <button type="button" class="page-icon" id="visOpenMenu" aria-label="Menü">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div class="page-brand">
+          <svg class="page-shield" viewBox="0 0 128 128">
+            <defs>
+              <linearGradient id="visGold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fff3c4"/>
+                <stop offset="45%" stop-color="#e0b84a"/>
+                <stop offset="100%" stop-color="#8a6a12"/>
+              </linearGradient>
+            </defs>
+            <circle cx="64" cy="64" r="56" fill="url(#visGold)"/>
+            <path d="M64 26c-16 4-28 6-28 6v32c0 22 13 34 28 42 15-8 28-20 28-42V32s-12-2-28-6z" fill="#0c0c0c"/>
+            <polygon points="64,46 69,59 83,60 72,69 76,83 64,75 52,83 56,69 45,60 59,59" fill="url(#visGold)"/>
+          </svg>
+          <strong class="gold-text">S-360</strong>
+          <em>GÜVENLİ DAHA YARINLAR</em>
+        </div>
+        <div class="date-chip page-date">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+          <div>
+            <strong class="js-date-full">—</strong>
+            <span class="js-date-week">—</span>
+          </div>
+        </div>
+      </header>
+      <div class="page-body vis-page">
+        <div class="page-title-row">
+          <div>
+            <h2>Ziyaretçiler</h2>
+            <p>Tüm ziyaretçi kayıtlarını görüntüleyin ve yönetin.</p>
+          </div>
+          <button type="button" class="vis-new hidden" id="visNewBtn">+ Yeni Kayıt</button>
+        </div>
+        <div class="gold-search vis-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+          <input id="visSearch" placeholder="İsim, firma, plaka, kişi, amaç ara..." />
+          <button type="button" class="gold-search-btn" id="visFilterToggle" aria-label="Filtre">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M6 12h12M9 18h6"/></svg>
+          </button>
+        </div>
+        <div class="vis-pills vis-type-grid" id="visPills"></div>
+        <div class="vis-filters hidden" id="visFilters">
+          <label class="vis-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+            <span>Tarih Seç</span>
+            <input type="date" id="visDate" />
+          </label>
+          <label class="vis-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16l-6 7v5l-4 2v-7z"/></svg>
+            <select id="visStatus">
+              <option value="all">Durum</option>
+              <option value="in">İçeride</option>
+              <option value="out">Çıktı</option>
+            </select>
+          </label>
+          <label class="vis-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 13l2-6h14l2 6"/><path d="M5 13h14v6H5z"/></svg>
+            <select id="visEntry">
+              <option value="all">Giriş Şekli</option>
+              <option value="ARAÇLI">Araçlı</option>
+              <option value="YAYAN">Yayan</option>
+            </select>
+          </label>
+          <button type="button" class="vis-chip vis-clear" id="visClear">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            Temizle
+          </button>
+        </div>
+        <div class="vis-stats" id="visStats"></div>
+        <div class="vis-list-h">
+          <b id="visListTitle">Son Ziyaretçiler</b>
+          <select id="visSort">
+            <option value="new">Tarih (Yeni → Eski)</option>
+            <option value="old">Son geliş (Eski → Yeni)</option>
+            <option value="visits">En çok giriş</option>
+          </select>
+        </div>
+        <div id="visitorsList" class="vis-list"></div>
+        <div class="vis-pager" id="visPager"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-directory">
+      <header class="page-top">
+        <button type="button" class="page-icon" id="dirBack" aria-label="Geri">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <div class="page-brand">
+          <svg class="page-shield" viewBox="0 0 128 128">
+            <defs>
+              <linearGradient id="dirGold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fff3c4"/>
+                <stop offset="45%" stop-color="#e0b84a"/>
+                <stop offset="100%" stop-color="#8a6a12"/>
+              </linearGradient>
+            </defs>
+            <circle cx="64" cy="64" r="56" fill="url(#dirGold)"/>
+            <path d="M64 26c-16 4-28 6-28 6v32c0 22 13 34 28 42 15-8 28-20 28-42V32s-12-2-28-6z" fill="#0c0c0c"/>
+            <polygon points="64,46 69,59 83,60 72,69 76,83 64,75 52,83 56,69 45,60 59,59" fill="url(#dirGold)"/>
+          </svg>
+          <strong class="gold-text">S-360</strong>
+          <em>GÜVENLİ DAHA YARINLAR</em>
+        </div>
+        <div class="date-chip page-date">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+          <div>
+            <strong class="js-date-full">—</strong>
+            <span class="js-date-week">—</span>
+          </div>
+        </div>
+      </header>
+      <div class="page-body dir-page">
+        <h2 class="dir-title">Rehber</h2>
+        <p class="dir-sub">Hızlı erişim için gerekli bilgilere buradan ulaşabilirsiniz.</p>
+        <div class="gold-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+          <input id="dirSearch" placeholder="Ara... (kişi, birim, telefon, konu)" />
+          <button type="button" class="gold-search-btn" aria-label="Filtre">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+          </button>
+        </div>
+        <div class="dir-cats" id="dirCats"></div>
+        <div id="contactsList" class="dir-list"></div>
+        <div class="dir-info">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+          <span>Rehber bilgileri, güvenli ve kontrollü çalışma için hazırlanmıştır. Güncel bilgiler için yönetim ile iletişime geçiniz.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-visitor-form">
+      <header class="reg-top">
+        <button type="button" class="reg-back" id="regBack" aria-label="Geri">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <div class="reg-brand">
+          <svg class="reg-shield" viewBox="0 0 128 128">
+            <defs>
+              <linearGradient id="regGold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fff3c4"/>
+                <stop offset="45%" stop-color="#e0b84a"/>
+                <stop offset="100%" stop-color="#8a6a12"/>
+              </linearGradient>
+            </defs>
+            <circle cx="64" cy="64" r="56" fill="url(#regGold)"/>
+            <path d="M64 26c-16 4-28 6-28 6v32c0 22 13 34 28 42 15-8 28-20 28-42V32s-12-2-28-6z" fill="#0c0c0c"/>
+            <polygon points="64,46 69,59 83,60 72,69 76,83 64,75 52,83 56,69 45,60 59,59" fill="url(#regGold)"/>
+          </svg>
+          <strong class="gold-text">S-360</strong>
+          <em>GÜVENLİ DAHA YARINLAR</em>
+        </div>
+        <div class="reg-meta">
+          <div class="reg-chip date">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+            <div>
+              <strong id="regDateDay">—</strong>
+              <span id="regDateWeek">—</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="reg-pad">
+        <div class="reg-title-row">
+          <div>
+            <h2>Ziyaretçi Kaydı</h2>
+            <p>Ziyaretçi bilgilerini eksiksiz olarak giriniz.</p>
+          </div>
+          <div class="reg-no">
+            <small>Kayıt No</small>
+            <b id="regNo">#ZK-0003</b>
+          </div>
+        </div>
+
+        <div class="reg-tabs" role="tablist">
+          <button type="button" class="reg-tab" data-type="sevkiyat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+            Sevkiyat
+          </button>
+          <button type="button" class="reg-tab" data-type="gorusme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Görüşme
+          </button>
+          <button type="button" class="reg-tab active" data-type="calisma">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M6 21v-2a4 4 0 0 1 3-3.87"/><path d="M8.2 5.2 6.4 3.6M15.8 5.2 17.6 3.6M12 2.4V1"/><path d="M14.5 21v-2a3.5 3.5 0 0 0-2.2-3.2"/><path d="M4 14h3l1 2h2"/></svg>
+            Çalışma
+          </button>
+        </div>
+
+        <form class="reg-card" id="visitorForm">
+          <input type="hidden" name="visit_type" id="visitType" value="calisma" />
+          <input type="hidden" name="entry_type" id="entryType" value="YAYAN" />
+          <input type="hidden" name="vehicle_status" id="vehicleStatus" value="YAYAN" />
+          <div class="reg-card-h">
+            <span class="reg-type-ico" id="regTypeIco">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M6 21v-2a4 4 0 0 1 3-3.87"/><path d="M8.2 5.2 6.4 3.6M15.8 5.2 17.6 3.6M12 2.4V1"/><path d="M14.5 21v-2a3.5 3.5 0 0 0-2.2-3.2"/><path d="M4 14h3l1 2h2"/></svg>
+            </span>
+            <div>
+              <b id="regTypeTitle">Çalışma</b>
+              <p id="regTypeDesc">Proje, bakım, onarım veya geçici çalışma için gelen ziyaretçiler.</p>
+            </div>
+          </div>
+
+          <div id="regFields"></div>
+
+          <button class="btn-gold reg-save" type="submit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8"/><path d="M8 21v-7h8v7"/></svg>
+            Kaydet
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <section class="view" id="view-alerts">
+      <header class="page-top">
+        <button type="button" class="page-icon" id="alertOpenMenu" aria-label="Menü">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div class="page-brand">
+          <strong class="gold-text">S-360</strong>
+          <em>GÜVENLİ DAHA YARINLAR</em>
+        </div>
+        <div class="date-chip page-date">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+          <div>
+            <strong class="js-date-full">—</strong>
+            <span class="js-date-week">—</span>
+          </div>
+        </div>
+      </header>
+      <div class="page-body vis-page">
+        <div class="page-title-row">
+          <div>
+            <h2>Haber Ver</h2>
+            <p>Beklenen ziyaretçi ekleyin. Kayıt eşleşince anında bildirim gider.</p>
+          </div>
+        </div>
+        <form class="alert-form" id="alertForm">
+          <label>İsim soyisim *
+            <input name="full_name" placeholder="ÜMİT YILMAZ" required autocomplete="off" />
+          </label>
+          <label>Firma
+            <input name="company" placeholder="ABC LOJİSTİK" autocomplete="off" />
+          </label>
+          <div class="alert-row">
+            <label>Gün
+              <input type="date" name="visit_date" />
+            </label>
+            <label>Saat
+              <input type="time" name="visit_time" />
+            </label>
+          </div>
+          <label>Açıklama
+            <textarea name="notes" rows="2" placeholder="Kapıda bekleniyor, güvenlik uyarısı vb."></textarea>
+          </label>
+          <button class="btn-gold" type="submit">Kaydet ve bildir</button>
+        </form>
+        <div class="vis-list-h"><b id="alertListTitle">Beklenen listesi (0)</b></div>
+        <div id="alertsList" class="vis-list"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-notifications">
+      <div class="page-pad">
+        <h2 class="page-title">Bildirimler</h2>
+        <div class="list-card" id="notifList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-patrol">
+      <div class="page-pad">
+        <h2 class="page-title">Devriye Noktaları</h2>
+        <div class="list-card" id="patrolList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-reports">
+      <div class="page-pad">
+        <h2 class="page-title">Raporlar</h2>
+        <div class="list-card">
+          <div class="item-row"><b>Günlük hareket özeti</b><span>Bugünün giriş / çıkış sayıları ana sayfada.</span></div>
+          <div class="item-row"><b>Aylık rapor</b><span>Yönetici panelinden yedek ve dışa aktarım alınabilir.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-announcements">
+      <div class="page-pad">
+        <h2 class="page-title">Duyurular</h2>
+        <div class="list-card" id="annList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-settings">
+      <div class="page-pad">
+        <h2 class="page-title">Ayarlar</h2>
+        <div class="list-card">
+          <div class="item-row"><b>Bildirimler</b><span>Kilit ekranı ve sesli bildirim için izin verin.</span>
+            <button type="button" class="btn-gold" id="enableNotifBtn" style="margin-top:8px">Bildirim iznini aç</button>
+          </div>
+          <div class="item-row"><b>Tema</b><span>S-360 koyu / altın arayüz.</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="view" id="view-profile">
+      <div class="page-pad">
+        <h2 class="page-title">Profilim</h2>
+        <div class="list-card">
+          <div class="item-row"><b id="profileName">—</b><span id="profileRole">—</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="view" id="view-help">
+      <div class="page-pad">
+        <h2 class="page-title">Yardım</h2>
+        <div class="list-card">
+          <div class="item-row"><b>Ziyaretçi kaydı</b><span>Altın + tuşu ile yeni kayıt açın.</span></div>
+          <div class="item-row"><b>Haber Ver</b><span>Menüden beklenen ziyaretçi ekleyin. Kayıt eşleşince bildirim düşer.</span></div>
+          <div class="item-row"><b>Anahtar teslim</b><span>Ver ile teslim, bildirim saati seçin (varsayılan 06:00). Al ile iade.</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="view" id="view-emergency">
+      <div class="page-pad">
+        <h2 class="page-title">Acil Durum</h2>
+        <form class="form-card" id="emergencyForm">
+          <label>Bildirim metni</label>
+          <input name="message" value="Acil durum — tüm birimler alarma geçsin" />
+          <button class="btn-gold mt-12" type="submit" style="background:linear-gradient(180deg,#ff6b6b,#b91c1c);color:#fff">Hızlı Bildirim Gönder</button>
+        </form>
+      </div>
+    </section>
+    </div>
+
+    <nav class="tabbar" aria-label="Ana menü">
+      <div class="tabbar-bg" aria-hidden="true"></div>
+      <div class="tabbar-row">
+        <button class="tab active" data-view="home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-7H10v7H5a1 1 0 0 1-1-1z"/></svg>
+          <span>Ana Sayfa</span>
+        </button>
+        <button class="tab" data-view="keys">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="15" r="4"/><path d="M11.5 13.5L21 4v4"/><path d="M17 8h3"/></svg>
+          <span>Anahtar Teslim</span>
+        </button>
+        <div class="fab-slot">
+          <button class="fab" id="fabRegister" type="button" aria-label="Ziyaretçi Kaydı">
+            <span class="fab-glow" aria-hidden="true"></span>
+            <span class="fab-face">+</span>
+          </button>
+          <small>Ziyaretçi Kaydı</small>
+        </div>
+        <button class="tab" data-view="visitors">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M7 21v-2a4 4 0 0 1 3-3.87"/><circle cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M2 21v-2a4 4 0 0 1 3-3.87"/><circle cx="5.5" cy="10" r="2.5"/><circle cx="18.5" cy="10" r="2.5"/></svg>
+          <span>Ziyaretçiler</span>
+        </button>
+        <button class="tab" data-view="directory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7a2 2 0 0 1 2 2v13l-2.5-1.5L8 20V7a2 2 0 0 0-2-2H4z"/><path d="M13 5h7v15l-2.5-1.5L15 20V7a2 2 0 0 0-2-2z"/><path d="M17 10v4M15 12h4"/></svg>
+          <span>Rehber</span>
+        </button>
+      </div>
+    </nav>
+
+    <div class="drawer-bg" id="drawerBg"></div>
+    <aside class="drawer" id="drawer">
+      <div class="who">
+        <div class="who-av" id="whoAv" aria-hidden="true">S</div>
+        <div class="who-meta">
+          <b id="drawerName">—</b>
+          <span id="drawerRole">—</span>
+          <em class="who-on"><i></i> Çevrimiçi</em>
+        </div>
+        <svg class="who-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+      <nav>
+        <button data-view="home" class="active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-7H10v7H5a1 1 0 0 1-1-1z"/></svg>
+          Ana Sayfa
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button type="button" id="openRegisterMenu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M16 11h6"/></svg>
+          Ziyaretçi Kaydı
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button data-view="visitors">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Ziyaretçiler
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button data-view="alerts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+          Haber Ver
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button data-view="keys">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="15" r="4"/><path d="M11.5 13.5L21 4v4"/><path d="M17 8h3"/></svg>
+          Anahtar Teslim
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button data-view="directory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19a2 2 0 0 0 2-2V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 1-2-2z"/><path d="M16 7h-6M16 11h-6"/></svg>
+          Rehber
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <hr class="drawer-line" />
+        <a class="hidden" id="adminLink" href="/admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+          Yönetim
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+        <button data-view="reports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+          Raporlar
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button data-view="announcements">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11v2a8 4 0 0 0 8 4h1"/><path d="M11 5l10 4-10 4V5z"/></svg>
+          Duyurular
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8"/></svg>
+          Ayarlar
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button data-view="profile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+          Profilim
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button data-view="help">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 1 1 3.8 2.8c-.8.4-1.4 1-1.4 1.8V14"/><path d="M12 17h.01"/></svg>
+          Yardım
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </nav>
+      <button class="out" id="logoutBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 17l-5-5 5-5"/><path d="M5 12h12"/><path d="M17 4v16"/></svg>
+        Çıkış Yap
+      </button>
+      <div class="drawer-foot">
+        <em>Güvenli Daha Yarınlar</em>
+        <small>v1.0.0</small>
+      </div>
+    </aside>
+
+    <div class="sheet-bg hidden" id="sheetBg"></div>
+    <aside class="sheet" id="sheet">
+      <div class="sheet-h">
+        <h3 id="sheetTitle">Detay</h3>
+        <button type="button" id="sheetClose" aria-label="Kapat">×</button>
+      </div>
+      <div class="sheet-body" id="sheetBody"></div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/haptic.js?v=40"></script>
+  <script src="/js/api.js?v=40"></script>
+  <script src="/js/app.js?v=40"></script>
+  <script src="/js/pwa.js?v=40"></script>
+</body>
+</html>

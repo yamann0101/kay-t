@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="S-360" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <title>S-360 · Giriş</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/tokens.css?v=5" />
+  <link rel="stylesheet" href="/css/login.css?v=5" />
+</head>
+<body class="login-page framed">
+  <div class="phone-shell">
+    <div class="login-bg"></div>
+    <svg class="silk left" viewBox="0 0 200 180" fill="none">
+      <path d="M-10 160 C40 120 20 70 80 90 C140 110 90 40 180 20" stroke="#d4af37" stroke-width="10" opacity="0.35"/>
+      <path d="M-20 150 C50 110 10 50 90 70 C150 90 110 20 200 8" stroke="#f3d77a" stroke-width="4" opacity="0.25"/>
+    </svg>
+    <svg class="silk right" viewBox="0 0 200 180" fill="none">
+      <path d="M-10 160 C40 120 20 70 80 90 C140 110 90 40 180 20" stroke="#d4af37" stroke-width="10" opacity="0.35"/>
+    </svg>
+
+    <div class="login-top">
+      <div class="lang-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        TR
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <div class="brand">
+      <div class="shield-wrap">
+        <svg viewBox="0 0 128 128">
+          <defs>
+            <linearGradient id="goldg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#fff3c4"/>
+              <stop offset="45%" stop-color="#e0b84a"/>
+              <stop offset="100%" stop-color="#8a6a12"/>
+            </linearGradient>
+          </defs>
+          <circle cx="64" cy="64" r="56" fill="url(#goldg)"/>
+          <circle cx="64" cy="64" r="50" fill="none" stroke="#1a1408" stroke-width="2" opacity="0.25"/>
+          <path d="M64 26c-16 4-28 6-28 6v32c0 22 13 34 28 42 15-8 28-20 28-42V32s-12-2-28-6z" fill="#0c0c0c"/>
+          <polygon points="64,46 69,59 83,60 72,69 76,83 64,75 52,83 56,69 45,60 59,59" fill="url(#goldg)"/>
+        </svg>
+      </div>
+      <h1 class="gold-text">S-360</h1>
+      <div class="sub">ÖZEL GÜVENLİK YÖNETİM SİSTEMİ</div>
+      <div class="slogan-row"><i></i><span>DAHA GÜVENLİ YARINLAR</span><i></i></div>
+    </div>
+
+    <form class="login-card" id="loginForm">
+      <h2>Hoş <b>Geldiniz</b></h2>
+      <p class="hint">Lütfen bilgilerinizi girerek devam edin</p>
+      <div class="field">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="4"/></svg>
+        <input id="username" name="username" autocomplete="username" placeholder="Kullanıcı Adı" />
+      </div>
+      <div class="field">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Şifre" />
+        <button type="button" class="eye" id="togglePass" aria-label="Şifreyi göster">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+      <div class="error-msg" id="error"></div>
+      <div class="row-between">
+        <label class="remember"><input type="checkbox" id="remember" /> Beni Hatırla</label>
+        <a class="forgot" href="#" id="forgot">Şifremi Unuttum?</a>
+      </div>
+      <button class="btn-gold" type="submit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        Giriş Yap
+      </button>
+      <div class="or">veya</div>
+      <button class="btn-bio" type="button" id="bio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+          <path d="M12 11a3 3 0 0 0-3 3v6"/><path d="M9 8a3 3 0 1 1 6 0"/><path d="M15 11v2"/><path d="M6 12a6 6 0 0 1 12 0"/><path d="M18 12v3"/><path d="M7 16v-1"/>
+        </svg>
+        Biyometrik Giriş
+      </button>
+    </form>
+
+    <div class="login-foot">
+      <img class="skyline" src="/assets/skyline.png" alt="" />
+      <p class="quote">“Güvenlik, Sadece Bir Görev Değil, Bir Sorumluluktur.”</p>
+      <div class="feats">
+        <div class="feat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l8 4v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/></svg>
+          GÜVENLİ SİSTEM
+        </div>
+        <div class="feat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2L4 14h7l-1 8 10-14h-7l0-6z"/></svg>
+          HIZLI ERİŞİM
+        </div>
+        <div class="feat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          KOLAY YÖNETİM
+        </div>
+      </div>
+      <div class="ver">S-360 v1.0.0</div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/js/haptic.js?v=19"></script>
+  <script src="/js/api.js?v=11"></script>
+  <script src="/js/login.js?v=11"></script>
+  <script src="/js/pwa.js?v=11"></script>
+</body>
+</html>
