@@ -1,4 +1,4 @@
-const CACHE = "s360-v33";
+const CACHE = "s360-v34";
 const PRECACHE = [
   "/",
   "/app",
@@ -32,11 +32,37 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/")) return;
+
+  // HTML / navigasyon: her zaman ağdan (yenileme çalışsın)
+  const isNav =
+    request.mode === "navigate" ||
+    url.pathname === "/" ||
+    url.pathname === "/app" ||
+    url.pathname === "/admin" ||
+    url.pathname.endsWith(".html");
+
+  if (isNav) {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy));
+          return res;
+        })
+        .catch(() => caches.match(request).then((r) => r || caches.match("/")))
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(request)
       .then((res) => {
@@ -44,7 +70,7 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE).then((c) => c.put(request, copy));
         return res;
       })
-      .catch(() => caches.match(request).then((r) => r || caches.match("/")))
+      .catch(() => caches.match(request))
   );
 });
 

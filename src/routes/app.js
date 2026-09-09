@@ -427,28 +427,137 @@ router.post("/keys/:id/favorite", async (req, res) => {
 router.post("/keys/:id/take", async (req, res) => {
   const notifyTime = parseNotifyTime(req.body?.notify_time);
   const notifyAt = nextNotifyAt(notifyTime);
+  const first = String(req.body?.first_name || "").trim();
+  const last = String(req.body?.last_name || "").trim();
+  const company = String(req.body?.company || "").trim();
+  const full = `${first} ${last}`.trim();
+  let takenAt = new Date();
+  if (req.body?.taken_at) {
+    const parsed = new Date(req.body.taken_at);
+    if (!Number.isNaN(parsed.getTime())) takenAt = parsed;
+  }
   const { rows } = await query(
-    `UPDATE keys SET status='taken', holder_id=$2, notify_time=$3, notify_at=$4 WHERE id=$1 RETURNING *`,
-    [req.params.id, req.user.id, notifyTime, notifyAt.toISOString()]
+    `UPDATE keys SET
+       status='taken',
+       holder_id=$2,
+       notify_time=$3,
+       notify_at=$4,
+       holder_first_name=$5,
+       holder_last_name=$6,
+       holder_company=$7,
+       taken_at=$8,
+       returned_at=NULL
+     WHERE id=$1 RETURNING *`,
+    [
+      req.params.id,
+      req.user.id,
+      notifyTime,
+      notifyAt.toISOString(),
+      first || null,
+      last || null,
+      company || null,
+      takenAt.toISOString(),
+    ]
   );
-  await query(`INSERT INTO key_logs (key_id, user_id, action) VALUES ($1,$2,'teslim')`, [
+  const detail = JSON.stringify({
+    first_name: first,
+    last_name: last,
+    company,
+    taken_at: takenAt.toISOString(),
+  });
+  await query(`INSERT INTO key_logs (key_id, user_id, action, detail) VALUES ($1,$2,'teslim',$3)`, [
     req.params.id,
     req.user.id,
+    detail,
   ]);
-  await writeLog(req, "Anahtar teslim", `${rows[0]?.code} · hatırlatma ${notifyTime}`);
+  await writeLog(
+    req,
+    "Anahtar teslim",
+    `${rows[0]?.code} · ${full || "—"} · ${company || "—"} · hatırlatma ${notifyTime}`
+  );
   res.json({ item: rows[0] });
 });
 
 router.post("/keys/:id/return", async (req, res) => {
+  const current = await query(`SELECT * FROM keys WHERE id=$1`, [req.params.id]);
+  const key = current.rows[0];
+  if (!key) return res.status(404).json({ error: "Anahtar bulunamadı" });
+  let returnedAt = new Date();
+  if (req.body?.returned_at) {
+    const parsed = new Date(req.body.returned_at);
+    if (!Number.isNaN(parsed.getTime())) returnedAt = parsed;
+  }
+  const detail = JSON.stringify({
+    first_name: key.holder_first_name,
+    last_name: key.holder_last_name,
+    company: key.holder_company,
+    taken_at: key.taken_at,
+    returned_at: returnedAt.toISOString(),
+  });
   const { rows } = await query(
-    `UPDATE keys SET status='available', holder_id=NULL, notify_time=NULL, notify_at=NULL WHERE id=$1 RETURNING *`,
-    [req.params.id]
+    `UPDATE keys SET
+       status='available',
+       holder_id=NULL,
+       notify_time=NULL,
+       notify_at=NULL,
+       returned_at=$2
+     WHERE id=$1 RETURNING *`,
+    [req.params.id, returnedAt.toISOString()]
   );
-  await query(`INSERT INTO key_logs (key_id, user_id, action) VALUES ($1,$2,'iade')`, [
+  await query(`INSERT INTO key_logs (key_id, user_id, action, detail) VALUES ($1,$2,'iade',$3)`, [
     req.params.id,
     req.user.id,
+    detail,
   ]);
   await writeLog(req, "Anahtar iade", rows[0]?.code);
+  res.json({ item: rows[0] });
+});
+
+router.patch("/keys/:id/holder", async (req, res) => {
+  const first = String(req.body?.first_name || "").trim();
+  const last = String(req.body?.last_name || "").trim();
+  const company = String(req.body?.company || "").trim();
+  let takenAt = null;
+  if (req.body?.taken_at) {
+    const parsed = new Date(req.body.taken_at);
+    if (!Number.isNaN(parsed.getTime())) takenAt = parsed.toISOString();
+  }
+  const { rows } = await query(
+    `UPDATE keys SET
+       holder_first_name=COALESCE($2, holder_first_name),
+       holder_last_name=COALESCE($3, holder_last_name),
+       holder_company=COALESCE($4, holder_company),
+       taken_at=COALESCE($5::timestamptz, taken_at)
+     WHERE id=$1 RETURNING *`,
+    [req.params.id, first || null, last || null, company || null, takenAt]
+  );
+  if (!rows[0]) return res.status(404).json({ error: "Anahtar bulunamadı" });
+  await writeLog(req, "Anahtar teslim düzenlendi", rows[0].code);
+  res.json({ item: rows[0] });
+});
+
+router.post("/keys/:id/cancel-take", async (req, res) => {
+  const { rows } = await query(
+    `UPDATE keys SET
+       status='available',
+       holder_id=NULL,
+       notify_time=NULL,
+       notify_at=NULL,
+       holder_first_name=NULL,
+       holder_last_name=NULL,
+       holder_company=NULL,
+       taken_at=NULL,
+       returned_at=NULL
+     WHERE id=$1 RETURNING *`,
+    [req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: "Anahtar bulunamadı" });
+  await query(`INSERT INTO key_logs (key_id, user_id, action, detail) VALUES ($1,$2,'iptal',$3)`, [
+    req.params.id,
+    req.user.id,
+    JSON.stringify({ reason: "silindi" }),
+  ]);
+  await writeLog(req, "Anahtar teslim silindi", rows[0].code);
   res.json({ item: rows[0] });
 });
 

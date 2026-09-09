@@ -552,8 +552,9 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
 .drawer-bg {
   position: absolute;
   inset: 0;
+  bottom: calc(var(--tabbar-h, 64px) + var(--fab-rise, 22px) + env(safe-area-inset-bottom, 0px) + 10px);
   background: rgba(0,0,0,0.55);
-  z-index: 40;
+  z-index: 100000;
   opacity: 0;
   pointer-events: none;
   transition: 0.25s;
@@ -563,17 +564,20 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   position: absolute;
   top: 0;
   left: 0;
-  height: 100%;
+  bottom: calc(var(--tabbar-h, 64px) + var(--fab-rise, 22px) + env(safe-area-inset-bottom, 0px) + 10px);
+  height: auto;
+  max-height: none;
   width: min(84vw, 328px);
   background: #070707;
   border-right: 1px solid rgba(212,175,55,0.28);
-  z-index: 41;
+  z-index: 100001;
   transform: translateX(-105%);
   transition: 0.28s cubic-bezier(.2,.8,.2,1);
-  padding: calc(14px + var(--safe-top)) 0 12px;
+  padding: calc(14px + var(--safe-top)) 0 8px;
   display: flex;
   flex-direction: column;
   box-shadow: 12px 0 40px rgba(0,0,0,0.55);
+  overflow: hidden;
 }
 .drawer.open { transform: none; }
 .drawer .who {
@@ -615,24 +619,30 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   box-shadow: 0 0 8px #22c55e;
 }
 .who-go { width: 16px; height: 16px; color: var(--gold-2); }
-.drawer nav { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; overflow: auto; }
+.drawer nav { padding: 4px 10px; display: flex; flex-direction: column; gap: 0; flex: 1; overflow: auto; min-height: 0; }
 .drawer nav button, .drawer nav a {
   display: grid;
   grid-template-columns: 22px 1fr 14px;
   align-items: center;
   gap: 10px;
-  padding: 11px 12px;
-  border-radius: 12px;
+  padding: 12px 12px;
+  border-radius: 0;
   color: #eee;
   font-size: 14px;
   text-align: left;
   font-weight: 600;
   width: 100%;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.drawer nav button:last-child, .drawer nav a:last-of-type {
+  border-bottom: 0;
 }
 .drawer nav button:hover, .drawer nav a:hover { background: rgba(255,255,255,0.04); }
 .drawer nav button.active, .drawer nav a.active {
   background: linear-gradient(90deg, #ffe08a 0%, #d6a63c 100%);
   color: #111;
+  border-radius: 10px;
+  border-bottom-color: transparent;
 }
 .drawer nav button.active svg, .drawer nav a.active svg { color: #111; }
 .drawer nav svg { width: 18px; height: 18px; color: var(--gold-2); }
@@ -640,8 +650,8 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
 .drawer-line {
   border: 0;
   height: 1px;
-  background: rgba(212,175,55,0.22);
-  margin: 8px 8px;
+  background: rgba(212,175,55,0.28);
+  margin: 6px 4px;
 }
 .drawer .out {
   margin: 6px 12px 8px;
@@ -1048,7 +1058,8 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
 }
 .reg-type-ico svg { width: 15px; height: 15px; }
 
-.reg-field { display: block; margin-bottom: 5px; min-width: 0; position: relative; overflow: visible; }
+.reg-field { display: block; margin-bottom: 5px; min-width: 0; position: relative; overflow: visible; z-index: 1; }
+.reg-field:focus-within { z-index: 20; }
 .reg-field > span {
   display: block;
   font-size: 10px;
@@ -1103,15 +1114,18 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   margin: 3px 0 0;
 }
 .suggest-box {
-  position: relative;
-  z-index: 30;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% - 2px);
+  z-index: 50;
   max-height: 168px;
   overflow: auto;
-  margin: 0 0 6px;
+  margin: 0;
   background: #0c0c0c;
   border: 1px solid rgba(212,168,63,0.4);
   border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.55);
 }
 .suggest-item {
   display: block;
@@ -1124,6 +1138,37 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
 .suggest-item b { display: block; font-size: 12px; }
 .suggest-item span { display: block; font-size: 10px; color: #9a9a9a; margin-top: 2px; }
 .suggest-item:hover { background: rgba(212,168,63,0.12); }
+.reg-quick-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 0 10px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(212,168,63,0.35);
+  background: #0a0a0a;
+}
+.reg-quick-search > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--gold-2);
+  flex-shrink: 0;
+}
+.reg-quick-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+}
+.reg-quick-search .suggest-box {
+  top: calc(100% + 4px);
+}
 .companion-wrap { margin: 2px 0 8px; }
 .companion-add {
   width: 100%;
@@ -1141,18 +1186,24 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
 .companion-add svg { width: 14px; height: 14px; }
 .companion-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 28px;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr) 28px;
   gap: 6px;
   margin-bottom: 6px;
+  max-width: 100%;
 }
 .companion-row input {
-  height: 34px;
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  width: 100%;
+  min-width: 0;
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.1);
   background: #0d0d0d;
   color: #fff;
   padding: 0 10px;
   font-size: 13px;
+  box-sizing: border-box;
 }
 .companion-del {
   height: 34px;

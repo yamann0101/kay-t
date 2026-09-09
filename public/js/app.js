@@ -213,7 +213,7 @@ const STAR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.6l
 let keyCache = { items: [], sections: [] };
 let keySectionFilter = "all";
 let keyStatusFilter = "all";
-let keyAccOpen = { fav: true };
+let keyAccOpen = {};
 
 function escHtml(v) {
   return String(v ?? "")
@@ -235,13 +235,16 @@ function keyStatusMeta(status) {
 
 function keyRowHtml(k) {
   const st = keyStatusMeta(k.status);
-  const holder = k.holder_name ? ` · ${k.holder_name}` : "";
+  const holderName = `${k.holder_first_name || ""} ${k.holder_last_name || ""}`.trim() || k.holder_name || "";
+  const holder = holderName ? ` · ${holderName}` : "";
+  const company = k.holder_company ? ` · ${k.holder_company}` : "";
+  const when = k.status === "taken" && k.taken_at ? ` · ${fmtDateTime(k.taken_at)}` : "";
   return `
     <div class="key-row" data-key-id="${k.id}">
       <div class="ico">${KEY_SVG}</div>
-      <div>
+      <div class="key-main" data-key-open="${k.id}">
         <b>${escHtml(k.code)}</b>
-        <small>${escHtml(k.name)}${escHtml(holder)}${k.status === "taken" && k.notify_time ? ` · hatırlatma ${escHtml(k.notify_time)}` : ""}</small>
+        <small>${escHtml(k.name)}${escHtml(holder)}${escHtml(company)}${escHtml(when)}${k.status === "taken" && k.notify_time ? ` · hatırlatma ${escHtml(k.notify_time)}` : ""}</small>
       </div>
       <div class="acts">
         <div class="btns">
@@ -269,23 +272,22 @@ function filteredKeys() {
 
 function bindKeyActions(root) {
   root.querySelectorAll("[data-act]").forEach((b) => {
-    b.onclick = async () => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
       if (b.disabled) return;
       if (b.dataset.act === "take") {
         openKeyTakeSheet(b.dataset.key);
         return;
       }
-      try {
-        await api(`/api/app/keys/${b.dataset.key}/${b.dataset.act}`, { method: "POST" });
-        toast("Anahtar iade alındı");
-        loadKeys();
-      } catch (err) {
-        toast(err.message || "İşlem başarısız");
+      if (b.dataset.act === "return") {
+        openKeyReturnSheet(b.dataset.key);
+        return;
       }
     };
   });
   root.querySelectorAll("[data-fav]").forEach((b) => {
-    b.onclick = async () => {
+    b.onclick = async (e) => {
+      e.stopPropagation();
       try {
         await api(`/api/app/keys/${b.dataset.fav}/favorite`, { method: "POST" });
         loadKeys();
@@ -293,6 +295,9 @@ function bindKeyActions(root) {
         toast(err.message || "Favori güncellenemedi");
       }
     };
+  });
+  root.querySelectorAll("[data-key-open]").forEach((el) => {
+    el.onclick = () => openKeyDetailSheet(el.dataset.keyOpen);
   });
 }
 
@@ -355,7 +360,7 @@ function renderKeys() {
   const chev = `<svg class="acc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>`;
   let html = "";
   if (favs.length) {
-    const favOpen = keyAccOpen.fav !== false ? " open" : "";
+    const favOpen = keyAccOpen.fav === true ? " open" : "";
     html += `<details class="key-acc key-fav" data-acc="fav"${favOpen}>
       <summary><svg class="acc-ico" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.6l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.2 7.2 18.5l.9-5.4L4.2 9.3l5.4-.8z"/></svg><em>Favori / Sık Kullanılan</em><span>${favs.length} Anahtar</span>${chev}</summary>
       ${favs.map(keyRowHtml).join("")}
@@ -367,7 +372,7 @@ function renderKeys() {
     html += groups
       .map((g) => {
         const title = /anahtar/i.test(g.name) ? g.name : `${g.name} Anahtarları`;
-        const opened = keyAccOpen[g.id] !== false ? " open" : "";
+        const opened = keyAccOpen[g.id] === true ? " open" : "";
         return `<details class="key-acc" data-acc="${g.id}"${opened}>
           <summary><svg class="acc-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="15" r="4"/><path d="M11.5 13.5L21 4v4"/><path d="M17 8h3"/></svg><em>${escHtml(title)}</em><span>${g.items.length} Anahtar</span>${chev}</summary>
           ${g.items.map(keyRowHtml).join("")}
@@ -391,31 +396,287 @@ async function loadKeys() {
   renderKeys();
 }
 
+function toLocalInputValue(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromLocalInputValue(v) {
+  if (!v) return new Date();
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+
+function copyKeyText(k) {
+  const name = `${k.holder_first_name || ""} ${k.holder_last_name || ""}`.trim() || k.holder_name || "-";
+  const when = k.taken_at ? fmtDateTime(k.taken_at) : "-";
+  return [
+    "ANAHTAR TESLİMİ",
+    `Anahtar: ${k.code || "-"} · ${k.name || "-"}`,
+    `Alan: ${name}`,
+    `Firma: ${k.holder_company || "-"}`,
+    `Veriş tarihi/saati: ${when}`,
+  ].join("\n");
+}
+
+async function copyText(text) {
+  let ok = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }
+  } catch {
+    ok = false;
+  }
+  if (!ok) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;left:-9999px;top:0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ok = document.execCommand("copy");
+      ta.remove();
+    } catch {
+      ok = false;
+    }
+  }
+  if (ok) {
+    toast("Kopyalandı");
+    if (window.haptic) window.haptic("ok");
+  } else toast("Kopyalanamadı");
+}
+
+function bindSheetPersonSuggest(form) {
+  const fields = ["first_name", "last_name", "company"];
+  fields.forEach((key) => {
+    const el = form.querySelector(`[name="${key}"]`);
+    const box = form.querySelector(`[data-suggest-for="${key}"]`);
+    if (!el || !box) return;
+    let t = null;
+    el.addEventListener("input", () => {
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        const q = String(el.value || "").trim();
+        if (q.length < 1) {
+          box.classList.add("hidden");
+          return;
+        }
+        try {
+          const { items } = await api(
+            `/api/app/visitors/suggest?q=${encodeURIComponent(q)}&field=${encodeURIComponent(key)}`
+          );
+          if (!items?.length) {
+            box.classList.add("hidden");
+            return;
+          }
+          box.innerHTML = items
+            .map(
+              (it) => `<button type="button" class="suggest-item" data-sid="${it.id}">
+              <b>${escHtml(it.full_name || `${it.first_name || ""} ${it.last_name || ""}`)}</b>
+              <span>${escHtml([it.company, it.plate].filter(Boolean).join(" · "))}</span>
+            </button>`
+            )
+            .join("");
+          box.classList.remove("hidden");
+          box.querySelectorAll(".suggest-item").forEach((btn) => {
+            btn.onmousedown = (e) => e.preventDefault();
+            btn.onclick = () => {
+              const item = items.find((x) => String(x.id) === String(btn.dataset.sid));
+              if (!item) return;
+              form.querySelector('[name="first_name"]').value = (item.first_name || "").toLocaleUpperCase("tr-TR");
+              form.querySelector('[name="last_name"]').value = (item.last_name || "").toLocaleUpperCase("tr-TR");
+              form.querySelector('[name="company"]').value = (item.company || "").toLocaleUpperCase("tr-TR");
+              box.classList.add("hidden");
+            };
+          });
+        } catch {
+          box.classList.add("hidden");
+        }
+      }, 180);
+    });
+    el.addEventListener("blur", () => setTimeout(() => box.classList.add("hidden"), 180));
+  });
+}
+
 function openKeyTakeSheet(id) {
   const key = (keyCache.items || []).find((k) => String(k.id) === String(id));
   openSheet(
-    "Anahtar teslim",
+    "Anahtar Ver",
     `<form class="sheet-form" id="keyTakeForm">
       <p class="sheet-lead">${escHtml(key ? `${key.code} · ${key.name}` : "Anahtar")}</p>
+      <label class="reg-field">
+        <span>Adı</span>
+        <div class="reg-input"><input name="first_name" autocomplete="off" required /></div>
+        <div class="suggest-box hidden" data-suggest-for="first_name"></div>
+      </label>
+      <label class="reg-field">
+        <span>Soyadı</span>
+        <div class="reg-input"><input name="last_name" autocomplete="off" required /></div>
+        <div class="suggest-box hidden" data-suggest-for="last_name"></div>
+      </label>
+      <label class="reg-field">
+        <span>Firma</span>
+        <div class="reg-input"><input name="company" autocomplete="off" /></div>
+        <div class="suggest-box hidden" data-suggest-for="company"></div>
+      </label>
+      <label>Veriş tarihi / saati</label>
+      <input type="datetime-local" name="taken_at" value="${toLocalInputValue()}" />
       <label>Bildirim saati</label>
       <input type="time" name="notify_time" value="06:00" />
-      <small>Boş bırakılırsa 06:00. Saat gelince telefon kilitli olsa da sesli bildirim düşer.</small>
+      <small>Boş bırakılırsa 06:00. Saat gelince bildirim düşer.</small>
       <button class="sheet-save" type="submit">Teslim Et</button>
     </form>`
   );
-  bindUppercase(document.getElementById("sheetBody"));
-  document.getElementById("keyTakeForm").onsubmit = async (e) => {
+  const form = document.getElementById("keyTakeForm");
+  bindUppercase(form);
+  bindSheetPersonSuggest(form);
+  form.onsubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const notifyTime = String(fd.get("notify_time") || "").trim() || "06:00";
+    const taken = fromLocalInputValue(fd.get("taken_at"));
     try {
       await enablePush(true);
-      await api(`/api/app/keys/${id}/take`, { method: "POST", body: { notify_time: notifyTime } });
+      await api(`/api/app/keys/${id}/take`, {
+        method: "POST",
+        body: {
+          notify_time: notifyTime,
+          first_name: String(fd.get("first_name") || "").trim(),
+          last_name: String(fd.get("last_name") || "").trim(),
+          company: String(fd.get("company") || "").trim(),
+          taken_at: taken.toISOString(),
+        },
+      });
       toast(`Teslim edildi · hatırlatma ${notifyTime}`);
       closeSheet();
       loadKeys();
     } catch (err) {
       toast(err.message || "Teslim başarısız");
+    }
+  };
+}
+
+function openKeyReturnSheet(id) {
+  const key = (keyCache.items || []).find((k) => String(k.id) === String(id));
+  if (!key) return;
+  const takenVal = key.taken_at ? toLocalInputValue(new Date(key.taken_at)) : toLocalInputValue();
+  openSheet(
+    "Anahtar Al",
+    `<form class="sheet-form" id="keyReturnForm">
+      <p class="sheet-lead">${escHtml(`${key.code} · ${key.name}`)}</p>
+      <div class="sheet-kv">
+        <div><span>Alan</span><b>${escHtml(`${key.holder_first_name || ""} ${key.holder_last_name || ""}`.trim() || "—")}</b></div>
+        <div><span>Firma</span><b>${escHtml(key.holder_company || "—")}</b></div>
+      </div>
+      <label>Veriş tarihi / saati</label>
+      <input type="datetime-local" name="taken_show" value="${takenVal}" />
+      <label>İade tarihi / saati</label>
+      <input type="datetime-local" name="returned_at" value="${toLocalInputValue()}" />
+      <button class="sheet-save" type="submit">İade Al</button>
+    </form>`
+  );
+  document.getElementById("keyReturnForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const returned = fromLocalInputValue(fd.get("returned_at"));
+    const takenShow = fromLocalInputValue(fd.get("taken_show"));
+    try {
+      if (key.taken_at && takenShow.toISOString() !== new Date(key.taken_at).toISOString()) {
+        await api(`/api/app/keys/${id}/holder`, {
+          method: "PATCH",
+          body: { taken_at: takenShow.toISOString() },
+        });
+      }
+      await api(`/api/app/keys/${id}/return`, {
+        method: "POST",
+        body: { returned_at: returned.toISOString() },
+      });
+      toast("Anahtar iade alındı");
+      closeSheet();
+      loadKeys();
+    } catch (err) {
+      toast(err.message || "İade başarısız");
+    }
+  };
+}
+
+function openKeyDetailSheet(id) {
+  const key = (keyCache.items || []).find((k) => String(k.id) === String(id));
+  if (!key) return;
+  const name = `${key.holder_first_name || ""} ${key.holder_last_name || ""}`.trim() || key.holder_name || "—";
+  openSheet(
+    "Anahtar Detayı",
+    `<div class="sheet-kv">
+      <div><span>Anahtar</span><b>${escHtml(key.code)} · ${escHtml(key.name)}</b></div>
+      <div><span>Durum</span><b>${escHtml(keyStatusMeta(key.status).label)}</b></div>
+      <div><span>Alan</span><b>${escHtml(name)}</b></div>
+      <div><span>Firma</span><b>${escHtml(key.holder_company || "—")}</b></div>
+      <div><span>Veriş</span><b>${key.taken_at ? escHtml(fmtDateTime(key.taken_at)) : "—"}</b></div>
+    </div>
+    <div class="vis-acts" style="margin-top:10px;flex-wrap:wrap">
+      <button type="button" class="vis-act" id="keyCopyBtn">Kopyala</button>
+      ${key.status === "taken" ? `<button type="button" class="vis-act edit" id="keyEditBtn">Düzenle</button>` : ""}
+      ${key.status === "taken" ? `<button type="button" class="vis-act exit" id="keyReturnBtn">Al</button>` : ""}
+      ${key.status === "taken" ? `<button type="button" class="vis-act" id="keyDelBtn" style="border-color:rgba(239,68,68,.5);color:#f87171">Sil</button>` : ""}
+      ${key.status === "available" ? `<button type="button" class="vis-act edit" id="keyGiveBtn">Ver</button>` : ""}
+    </div>`
+  );
+  document.getElementById("keyCopyBtn").onclick = () => copyText(copyKeyText(key));
+  document.getElementById("keyEditBtn")?.addEventListener("click", () => openKeyEditSheet(id));
+  document.getElementById("keyReturnBtn")?.addEventListener("click", () => openKeyReturnSheet(id));
+  document.getElementById("keyGiveBtn")?.addEventListener("click", () => openKeyTakeSheet(id));
+  document.getElementById("keyDelBtn")?.addEventListener("click", async () => {
+    if (!confirm("Teslim kaydı silinsin mi?")) return;
+    try {
+      await api(`/api/app/keys/${id}/cancel-take`, { method: "POST" });
+      toast("Teslim kaydı silindi");
+      closeSheet();
+      loadKeys();
+    } catch (err) {
+      toast(err.message || "Silinemedi");
+    }
+  });
+}
+
+function openKeyEditSheet(id) {
+  const key = (keyCache.items || []).find((k) => String(k.id) === String(id));
+  if (!key) return;
+  openSheet(
+    "Teslim Düzenle",
+    `<form class="sheet-form" id="keyEditForm">
+      <label class="reg-field"><span>Adı</span><div class="reg-input"><input name="first_name" value="${escHtml(key.holder_first_name || "")}" /></div><div class="suggest-box hidden" data-suggest-for="first_name"></div></label>
+      <label class="reg-field"><span>Soyadı</span><div class="reg-input"><input name="last_name" value="${escHtml(key.holder_last_name || "")}" /></div><div class="suggest-box hidden" data-suggest-for="last_name"></div></label>
+      <label class="reg-field"><span>Firma</span><div class="reg-input"><input name="company" value="${escHtml(key.holder_company || "")}" /></div><div class="suggest-box hidden" data-suggest-for="company"></div></label>
+      <label>Veriş tarihi / saati</label>
+      <input type="datetime-local" name="taken_at" value="${key.taken_at ? toLocalInputValue(new Date(key.taken_at)) : toLocalInputValue()}" />
+      <button class="sheet-save" type="submit">Kaydet</button>
+    </form>`
+  );
+  const form = document.getElementById("keyEditForm");
+  bindUppercase(form);
+  bindSheetPersonSuggest(form);
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      await api(`/api/app/keys/${id}/holder`, {
+        method: "PATCH",
+        body: {
+          first_name: String(fd.get("first_name") || "").trim(),
+          last_name: String(fd.get("last_name") || "").trim(),
+          company: String(fd.get("company") || "").trim(),
+          taken_at: fromLocalInputValue(fd.get("taken_at")).toISOString(),
+        },
+      });
+      toast("Güncellendi");
+      closeSheet();
+      loadKeys();
+    } catch (err) {
+      toast(err.message || "Güncellenemedi");
     }
   };
 }
@@ -1136,8 +1397,9 @@ function fieldHtml(f, meta) {
     f.key === "company" ? meta.company :
     f.key === "notes" ? meta.notes :
     f.key === "plate" ? "34 ABC 123" :
-    f.key === "visit_date" ? "08.09.2026" :
-    f.key === "entry_time" ? "09:15" : "";
+    f.key === "visit_date" ? "" :
+    f.key === "entry_time" ? "" :
+    f.key === "exit_time" ? "" : "";
   const req = f.required ? " required" : "";
   const star = f.required ? " <i>*</i>" : "";
   const icon = FIELD_ICONS[f.key] || FIELD_ICONS.default;
@@ -1145,21 +1407,27 @@ function fieldHtml(f, meta) {
   const suggest = ["first_name", "last_name", "company", "plate"].includes(f.key);
   const hint =
     f.key === "visit_date" || f.key === "entry_time"
-      ? `<small class="reg-note">Otomatik dolar, isterseniz değiştirebilirsiniz.</small>`
+      ? `<small class="reg-note">Takvim / saat seçiciden değiştirilebilir.</small>`
       : "";
-  const input =
-    f.type === "textarea"
-      ? `<textarea name="${f.key}" id="${id}" rows="2" placeholder="${ph}"${req}></textarea>`
-      : `<input name="${f.key}" id="${id}" placeholder="${ph}" autocomplete="off"${req} ${suggest ? `data-suggest="${f.key}"` : ""} />`;
+  let input;
+  if (f.type === "textarea") {
+    input = `<textarea name="${f.key}" id="${id}" rows="2" placeholder="${ph}"${req}></textarea>`;
+  } else if (f.key === "visit_date") {
+    input = `<input type="date" name="${f.key}" id="${id}"${req} />`;
+  } else if (f.key === "entry_time" || f.key === "exit_time") {
+    input = `<input type="time" name="${f.key}" id="${id}"${req} />`;
+  } else {
+    input = `<input name="${f.key}" id="${id}" placeholder="${ph}" autocomplete="off"${req} ${suggest ? `data-suggest="${f.key}"` : ""} />`;
+  }
   return `
     <label class="reg-field">
       <span>${f.label}${star}</span>
-      ${suggest ? `<div class="suggest-box hidden" data-suggest-for="${f.key}"></div>` : ""}
       <div class="reg-input${f.type === "textarea" ? " area" : ""}">
         ${icon}
         ${input}
         ${clr}
       </div>
+      ${suggest ? `<div class="suggest-box hidden" data-suggest-for="${f.key}"></div>` : ""}
       ${hint}
     </label>`;
 }
@@ -1236,7 +1504,8 @@ function hideAllSuggest() {
 function applySuggestion(item) {
   suggestLock = true;
   hideAllSuggest();
-  if (item.visit_type && VISIT_META[item.visit_type]) setVisitTab(item.visit_type);
+  const vt = item.visit_type || item.last_visit_type;
+  if (vt && VISIT_META[vt]) setVisitTab(vt);
   const set = (key, val) => {
     const el = fieldEl(key);
     if (el && val != null) el.value = val;
@@ -1306,6 +1575,56 @@ function bindSuggest() {
     });
     el.addEventListener("blur", () => setTimeout(() => hideSuggest(key), 180));
   });
+}
+
+function bindRegQuickSearch() {
+  const el = document.getElementById("regQuickSearch");
+  const box = document.getElementById("regQuickSuggest");
+  if (!el || !box || el.dataset.bound) return;
+  el.dataset.bound = "1";
+  let t = null;
+  el.addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(async () => {
+      const q = String(el.value || "").trim();
+      if (q.length < 1) {
+        box.classList.add("hidden");
+        return;
+      }
+      try {
+        const { items } = await api(`/api/app/visitors/suggest?q=${encodeURIComponent(q)}`);
+        if (!items?.length) {
+          box.classList.add("hidden");
+          return;
+        }
+        box.innerHTML = items
+          .map((it) => {
+            const type = it.visit_type || it.last_visit_type || "";
+            const typeLabel = TYPE_TR[type] || type || "";
+            return `<button type="button" class="suggest-item" data-sid="${it.id}">
+              <b>${escHtml(it.full_name || `${it.first_name || ""} ${it.last_name || ""}`)}</b>
+              <span>${escHtml([it.company, typeLabel].filter(Boolean).join(" · "))}</span>
+            </button>`;
+          })
+          .join("");
+        box.classList.remove("hidden");
+        box.querySelectorAll(".suggest-item").forEach((btn) => {
+          btn.onmousedown = (e) => e.preventDefault();
+          btn.onclick = () => {
+            const item = items.find((x) => String(x.id) === String(btn.dataset.sid));
+            if (item) {
+              applySuggestion(item);
+              el.value = "";
+              box.classList.add("hidden");
+            }
+          };
+        });
+      } catch {
+        box.classList.add("hidden");
+      }
+    }, 180);
+  });
+  el.addEventListener("blur", () => setTimeout(() => box.classList.add("hidden"), 180));
 }
 
 function renderRegFields() {
@@ -1381,17 +1700,20 @@ function renderRegFields() {
 
 function fillNowFields() {
   const d = new Date();
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const pad = (n) => String(n).padStart(2, "0");
   const dateEl = fieldEl("visit_date");
   const inEl = fieldEl("entry_time");
   const outEl = fieldEl("exit_time");
-  if (dateEl) dateEl.value = `${dd}.${mm}.${d.getFullYear()}`;
+  if (dateEl) {
+    if (dateEl.type === "date") {
+      dateEl.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    } else {
+      dateEl.value = `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+    }
+  }
   if (inEl) {
-    inEl.value = d.toLocaleTimeString("tr-TR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const t = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    inEl.value = t;
   }
   if (outEl) outEl.value = "";
   const p = nowParts();
@@ -1438,9 +1760,12 @@ function setVisitTab(type) {
 async function openVisitorRegister() {
   await loadSettings();
   document.getElementById("visitorForm").reset();
+  const qs = document.getElementById("regQuickSearch");
+  if (qs) qs.value = "";
   renderRegFields();
   fillNowFields();
   setVisitTab("calisma");
+  bindRegQuickSearch();
   try {
     const n = await api("/api/app/visitors/next-no");
     document.getElementById("regNo").textContent = `#${n.record_no}`;
@@ -1468,6 +1793,9 @@ document.getElementById("visitorForm").addEventListener("submit", async (e) => {
   body.entry_type = body.plate ? "ARAÇLI" : "YAYAN";
   body.vehicle_status = body.entry_type;
   body.companions = readCompanions();
+  if (body.visit_date && String(body.visit_date).includes("-")) {
+    body.visit_date = isoToTr(body.visit_date);
+  }
   try {
     const data = await api("/api/app/visitors", { method: "POST", body });
     const extra = body.companions.length ? ` (+${body.companions.length} kişi)` : "";

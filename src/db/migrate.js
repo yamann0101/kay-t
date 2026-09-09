@@ -6,7 +6,7 @@ import { backfillVisitorPeople } from "../lib/visitors.js";
 import { DEFAULT_COPY, DEFAULT_SHIFT } from "../lib/appSettings.js";
 
 /** Şema sürümü: her yapısal değişiklikte artır. Seed tekrarlanmaz. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -302,6 +302,12 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_visitor_people_last ON visitor_people(last_visit_at DESC);
     ALTER TABLE keys ADD COLUMN IF NOT EXISTS notify_time TEXT;
     ALTER TABLE keys ADD COLUMN IF NOT EXISTS notify_at TIMESTAMPTZ;
+    ALTER TABLE keys ADD COLUMN IF NOT EXISTS holder_first_name TEXT;
+    ALTER TABLE keys ADD COLUMN IF NOT EXISTS holder_last_name TEXT;
+    ALTER TABLE keys ADD COLUMN IF NOT EXISTS holder_company TEXT;
+    ALTER TABLE keys ADD COLUMN IF NOT EXISTS taken_at TIMESTAMPTZ;
+    ALTER TABLE keys ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ;
+    ALTER TABLE key_logs ADD COLUMN IF NOT EXISTS detail TEXT;
     CREATE TABLE IF NOT EXISTS visitor_alerts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       full_name TEXT NOT NULL,
