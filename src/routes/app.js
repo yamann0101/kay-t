@@ -16,7 +16,7 @@ import { sendPushAll, notifyVisitorAlerts } from "../lib/notify.js";
 import { parseShift, parseCopy } from "../lib/appSettings.js";
 import { foldSearch, namesMatch, searchBlob, toUpperTr, nextNotifyAt, parseNotifyTime } from "../lib/text.js";
 
-import { SQL_TR_TODAY } from "../lib/trTime.js";
+import { SQL_TR_TODAY, SQL_TR_MONTH } from "../lib/trTime.js";
 import bcrypt from "bcryptjs";
 
 const router = Router();
@@ -35,27 +35,54 @@ function daysWorked(startDate) {
 
 function canMutateVisitor(user, row) {
   if (!row) return false;
+  if (user.role === "viewer") return false;
   if (user.role === "admin" || user.role === "supervisor") return true;
   return String(row.created_by || "") === String(user.id);
 }
 
+function canWriteApp(user) {
+  return user && user.role !== "viewer";
+}
+
 router.get("/summary", async (_req, res) => {
-  const [giris, cikis, insideVisitors, meetings, shipments, todayVisitors] = await Promise.all([
+  const typeCount = (type, periodSql) =>
+    query(
+      `SELECT COUNT(*)::int AS n FROM visitors
+       WHERE LOWER(COALESCE(visit_type,'')) = $1 AND ${periodSql}`,
+      [type]
+    );
+  const [
+    totalGiris,
+    monthGiris,
+    todayGiris,
+    monthSev,
+    monthGor,
+    monthCal,
+    todaySev,
+    todayGor,
+    todayCal,
+  ] = await Promise.all([
+    query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='giris'`),
+    query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='giris' AND ${SQL_TR_MONTH}`),
     query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='giris' AND ${SQL_TR_TODAY}`),
-    query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='cikis' AND ${SQL_TR_TODAY}`),
-    query(`SELECT COUNT(*)::int AS n FROM visitors WHERE entered_at IS NOT NULL AND (exited_at IS NULL AND COALESCE(exited,false)=false)`),
-    query(`SELECT COUNT(*)::int AS n FROM meetings WHERE status='active'`),
-    query(`SELECT COUNT(*)::int AS n FROM shipments WHERE status='open'`),
-    query(`SELECT COUNT(*)::int AS n FROM visitors WHERE ${SQL_TR_TODAY}`),
+    typeCount("sevkiyat", SQL_TR_MONTH),
+    typeCount("gorusme", SQL_TR_MONTH),
+    typeCount("calisma", SQL_TR_MONTH),
+    typeCount("sevkiyat", SQL_TR_TODAY),
+    typeCount("gorusme", SQL_TR_TODAY),
+    typeCount("calisma", SQL_TR_TODAY),
   ]);
 
   res.json({
-    giris: giris.rows[0].n,
-    cikis: cikis.rows[0].n,
-    iceride: insideVisitors.rows[0].n,
-    gorusme: meetings.rows[0].n,
-    ziyaretci: todayVisitors.rows[0].n,
-    sevkiyat: shipments.rows[0].n,
+    total_giris: totalGiris.rows[0].n,
+    month_giris: monthGiris.rows[0].n,
+    month_sevkiyat: monthSev.rows[0].n,
+    month_gorusme: monthGor.rows[0].n,
+    month_calisma: monthCal.rows[0].n,
+    giris: todayGiris.rows[0].n,
+    sevkiyat: todaySev.rows[0].n,
+    gorusme: todayGor.rows[0].n,
+    calisma: todayCal.rows[0].n,
   });
 });
 
@@ -332,6 +359,7 @@ router.get("/visitors/:id", async (req, res) => {
 });
 
 router.post("/visitors", async (req, res) => {
+  if (!canWriteApp(req.user)) return res.status(403).json({ error: "İzleyici modunda kayıt yapılamaz" });
   try {
     const fields = await getVisitorFields();
     const companions = normalizeCompanionList(req.body?.companions);
@@ -370,6 +398,7 @@ router.post("/visitors", async (req, res) => {
 });
 
 router.post("/visitors/:id/exit", async (req, res) => {
+  if (!canWriteApp(req.user)) return res.status(403).json({ error: "İzleyici modunda işlem yapılamaz" });
   const { rows } = await query(
     `UPDATE visitors SET exited_at = NOW(), exited = TRUE, exit_time = COALESCE(exit_time, to_char(NOW() AT TIME ZONE 'Europe/Istanbul', 'HH24:MI'))
      WHERE id = $1 AND (exited_at IS NULL AND COALESCE(exited,false)=false) RETURNING *`,
@@ -386,12 +415,13 @@ router.post("/visitors/:id/exit", async (req, res) => {
 });
 
 router.post("/visitors/bulk-exit", async (req, res) => {
+  if (!canWriteApp(req.user)) return res.status(403).json({ error: "İzleyici modunda işlem yapılamaz" });
   const company = toUpperTr(req.body?.company || "").trim();
   if (!company) return res.status(400).json({ error: "Firma seçin" });
   const { rows } = await query(
     `UPDATE visitors SET exited_at = NOW(), exited = TRUE,
        exit_time = COALESCE(exit_time, to_char(NOW() AT TIME ZONE 'Europe/Istanbul', 'HH24:MI'))
-     WHERE UPPER(TRIM(COALESCE(company,''))) = $1
+     WHERE UPPER(TRIM(COALESCE(NULLIF(TRIM(company),''),'FİRMASIZ'))) = $1
        AND entered_at IS NOT NULL
        AND (exited_at IS NULL AND COALESCE(exited,false)=false)
      RETURNING *`,
@@ -410,7 +440,7 @@ router.post("/visitors/bulk-exit", async (req, res) => {
 
 router.get("/visitors/inside-companies", async (_req, res) => {
   const { rows } = await query(
-    `SELECT UPPER(TRIM(COALESCE(company,'FİRMASIZ'))) AS company, COUNT(*)::int AS n
+    `SELECT UPPER(TRIM(COALESCE(NULLIF(TRIM(company),''),'FİRMASIZ'))) AS company, COUNT(*)::int AS n
      FROM visitors
      WHERE entered_at IS NOT NULL AND (exited_at IS NULL AND COALESCE(exited,false)=false)
      GROUP BY 1
@@ -779,20 +809,35 @@ router.get("/alerts", async (_req, res) => {
 });
 
 router.post("/alerts", async (req, res) => {
-  const fullName = toUpperTr(req.body?.full_name || `${req.body?.first_name || ""} ${req.body?.last_name || ""}`).trim();
-  if (!fullName) return res.status(400).json({ error: "İsim gerekli" });
+  const first = toUpperTr(req.body?.first_name || "").trim();
+  const last = toUpperTr(req.body?.last_name || "").trim();
+  const fullName = toUpperTr(
+    req.body?.full_name || `${first} ${last}`.trim()
+  ).trim();
+  if (!first && !last && !fullName) return res.status(400).json({ error: "Ad veya soyad gerekli" });
   const company = toUpperTr(req.body?.company || "").trim();
   const notes = String(req.body?.notes || "").trim();
   const willEnter = !(req.body?.will_enter === false || req.body?.will_enter === "false" || req.body?.will_enter === 0 || req.body?.will_enter === "0");
-  const nameKey = foldSearch(fullName);
+  const displayName = fullName || `${first} ${last}`.trim();
+  const nameKey = foldSearch(displayName);
   const { rows } = await query(
-    `INSERT INTO visitor_alerts (full_name, name_key, company, company_key, notes, will_enter, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-    [fullName, nameKey, company || null, company ? foldSearch(company) : null, notes || null, willEnter, req.user.id]
+    `INSERT INTO visitor_alerts (full_name, first_name, last_name, name_key, company, company_key, notes, will_enter, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [
+      displayName,
+      first || null,
+      last || null,
+      nameKey,
+      company || null,
+      company ? foldSearch(company) : null,
+      notes || null,
+      willEnter,
+      req.user.id,
+    ]
   );
   const item = rows[0];
   const enterLabel = willEnter ? "İçeri GİRECEK" : "İçeri GİRMEYECEK";
-  const bits = [fullName, company, enterLabel].filter(Boolean);
+  const bits = [displayName, company, enterLabel].filter(Boolean);
   const noteBit = notes ? ` · ${notes}` : "";
   await sendPushAll({
     title: "Beklenen ziyaretçi",
@@ -800,7 +845,7 @@ router.post("/alerts", async (req, res) => {
     type: "alert",
     tag: `alert-new-${item.id}`,
   });
-  await writeLog(req, "Haber ver", fullName);
+  await writeLog(req, "Haber ver", displayName);
   res.json({ item });
 });
 
@@ -835,10 +880,13 @@ router.patch("/profile", async (req, res) => {
        coat_size = COALESCE($11, coat_size),
        sweater_size = COALESCE($12, sweater_size),
        start_date = COALESCE($13::date, start_date),
+       blood_type = COALESCE($14, blood_type),
+       marital_status = COALESCE($15, marital_status),
        updated_at = NOW()
      WHERE id = $1
      RETURNING id, username, full_name, role, phone, active, gender, armed, id_no, photo_url,
-               shoe_size, pants_size, shirt_size, coat_size, sweater_size, start_date`,
+               shoe_size, pants_size, shirt_size, coat_size, sweater_size, start_date,
+               blood_type, marital_status, title_id, chat_manager`,
     [
       req.user.id,
       String(b.full_name || "").trim(),
@@ -853,10 +901,21 @@ router.patch("/profile", async (req, res) => {
       b.coat_size ?? null,
       b.sweater_size ?? null,
       b.start_date || null,
+      b.blood_type ?? null,
+      b.marital_status ?? null,
     ]
   );
+  const title = rows[0]?.title_id
+    ? await query(`SELECT name FROM job_titles WHERE id=$1`, [rows[0].title_id])
+    : { rows: [] };
   await writeLog(req, "Profil güncelleme", req.user.full_name);
-  res.json({ user: { ...rows[0], days_worked: daysWorked(rows[0].start_date) } });
+  res.json({
+    user: {
+      ...rows[0],
+      title_name: title.rows[0]?.name || null,
+      days_worked: daysWorked(rows[0].start_date),
+    },
+  });
 });
 
 router.post("/profile/password", async (req, res) => {
@@ -882,18 +941,21 @@ router.get("/notes", async (_req, res) => {
 });
 
 router.post("/notes", async (req, res) => {
+  if (!canWriteApp(req.user)) return res.status(403).json({ error: "İzleyici modunda işlem yapılamaz" });
   const kind = req.body?.kind === "cargo" ? "cargo" : "note";
   const title = String(req.body?.title || "").trim() || (kind === "cargo" ? "Kargo" : "Not");
   const body = String(req.body?.body || "").trim();
-  if (!body && !title) return res.status(400).json({ error: "İçerik gerekli" });
+  let photo = String(req.body?.photo_url || "").trim() || null;
+  if (photo && photo.length > 2_500_000) return res.status(400).json({ error: "Fotoğraf çok büyük" });
+  if (!body && !title && !photo) return res.status(400).json({ error: "İçerik gerekli" });
   const { rows } = await query(
-    `INSERT INTO site_notes (kind, title, body, created_by) VALUES ($1,$2,$3,$4) RETURNING *`,
-    [kind, title, body || null, req.user.id]
+    `INSERT INTO site_notes (kind, title, body, photo_url, created_by) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [kind, title, body || null, photo, req.user.id]
   );
   const label = kind === "cargo" ? "Kargo bildirimi" : "Not";
   await sendPushAll({
     title: label,
-    body: `${req.user.full_name}: ${title}${body ? ` — ${body}` : ""}`.slice(0, 180),
+    body: `${req.user.full_name}: ${title}${body ? ` — ${body}` : ""}${photo ? " · 📷" : ""}`.slice(0, 180),
     type: kind,
     tag: `note-${rows[0].id}`,
   });
@@ -904,11 +966,12 @@ router.post("/notes", async (req, res) => {
 router.get("/chat", async (req, res) => {
   const { rows } = await query(
     `SELECT m.id, m.user_id, m.body, m.reply_to, m.created_at, m.deleted_at, m.deleted_by,
-            u.full_name AS user_name, u.photo_url,
+            u.full_name AS user_name, u.photo_url, t.name AS title_name,
             CASE WHEN m.deleted_at IS NULL THEN r.body ELSE NULL END AS reply_body,
             ru.full_name AS reply_user_name
      FROM chat_messages m
      LEFT JOIN users u ON u.id = m.user_id
+     LEFT JOIN job_titles t ON t.id = u.title_id
      LEFT JOIN chat_messages r ON r.id = m.reply_to
      LEFT JOIN users ru ON ru.id = r.user_id
      ORDER BY m.created_at DESC
@@ -1005,13 +1068,42 @@ router.delete("/chat/:id", async (req, res) => {
   if (!isOwner && !isAdmin) {
     return res.status(403).json({ error: "Sadece kendi mesajınızı silebilirsiniz" });
   }
-  // Soft delete — herkes görür: Silindi
   await query(
-    `UPDATE chat_messages SET deleted_at = NOW(), deleted_by = $2, body = CASE WHEN body = '' THEN body ELSE body END WHERE id = $1`,
+    `UPDATE chat_messages SET deleted_at = NOW(), deleted_by = $2 WHERE id = $1`,
     [req.params.id, req.user.id]
   );
   await writeLog(req, "Sohbet mesaj silindi", req.params.id);
   res.json({ ok: true, soft: true });
+});
+
+router.get("/reminders", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Sadece yönetici" });
+  const { rows } = await query(`SELECT * FROM custom_reminders ORDER BY created_at DESC`);
+  res.json({ items: rows });
+});
+
+router.post("/reminders", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Sadece yönetici" });
+  const title = String(req.body?.title || "").trim();
+  if (!title) return res.status(400).json({ error: "Başlık gerekli" });
+  const body = String(req.body?.body || "").trim();
+  const start_time = String(req.body?.start_time || "").slice(0, 5);
+  const end_time = String(req.body?.end_time || "").slice(0, 5) || null;
+  const interval_min = Math.max(15, Number(req.body?.interval_min) || 120);
+  const days = String(req.body?.days || "everyday").trim() || "everyday";
+  const { rows } = await query(
+    `INSERT INTO custom_reminders (title, body, start_time, end_time, interval_min, days, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    [title, body || null, start_time, end_time, interval_min, days, req.user.id]
+  );
+  await writeLog(req, "Hatırlatıcı", title);
+  res.json({ item: rows[0] });
+});
+
+router.delete("/reminders/:id", async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Sadece yönetici" });
+  await query(`DELETE FROM custom_reminders WHERE id=$1`, [req.params.id]);
+  res.json({ ok: true });
 });
 
 export default router;

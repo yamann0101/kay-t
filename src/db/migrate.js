@@ -6,7 +6,7 @@ import { backfillVisitorPeople } from "../lib/visitors.js";
 import { DEFAULT_COPY, DEFAULT_SHIFT } from "../lib/appSettings.js";
 
 /** Şema sürümü: her yapısal değişiklikte artır. Seed tekrarlanmaz. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 7;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -454,7 +454,43 @@ export async function migrate() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_manager BOOLEAN NOT NULL DEFAULT FALSE;
     ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
     ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS blood_type TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS marital_status TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS title_id UUID;
+    ALTER TABLE site_notes ADD COLUMN IF NOT EXISTS photo_url TEXT;
+    ALTER TABLE visitor_alerts ADD COLUMN IF NOT EXISTS first_name TEXT;
+    ALTER TABLE visitor_alerts ADD COLUMN IF NOT EXISTS last_name TEXT;
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+    ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin','supervisor','guard','viewer'));
+    CREATE TABLE IF NOT EXISTS job_titles (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT UNIQUE NOT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS custom_reminders (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      body TEXT,
+      start_time TEXT NOT NULL,
+      end_time TEXT,
+      interval_min INT NOT NULL DEFAULT 120,
+      days TEXT NOT NULL DEFAULT 'everyday',
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      last_sent_key TEXT,
+      created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
+  await query(
+    `INSERT INTO job_titles (name, sort_order) VALUES
+      ('Güvenlik Amiri', 1),
+      ('Yetkili', 2),
+      ('Ofis Personeli', 3),
+      ('Özel Güvenlik', 4),
+      ('Personel', 5)
+     ON CONFLICT (name) DO NOTHING`
+  );
 
   const result = await seedIfEmpty();
   await backfillVisitorPeople();

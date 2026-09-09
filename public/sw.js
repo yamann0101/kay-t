@@ -1,4 +1,4 @@
-const CACHE = "s360-v38";
+const CACHE = "s360-v41";
 const PRECACHE = [
   "/",
   "/app",
@@ -91,6 +91,16 @@ self.addEventListener("push", (event) => {
       const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const focused = clients.some((c) => c.focused);
       if (data.type === "chat" && focused && chatOpenFocused) return;
+      if (data.type === "alert" || /beklenen/i.test(String(data.title || ""))) {
+        for (const c of clients) {
+          c.postMessage({
+            type: "ALERT_MATCH",
+            title: data.title,
+            body: data.body,
+            tag: data.tag,
+          });
+        }
+      }
       await self.registration.showNotification(data.title, {
         body: data.body,
         icon: "/icons/icon-192.png",

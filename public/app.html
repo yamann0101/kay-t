@@ -14,9 +14,24 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=47" />
-  <link rel="stylesheet" href="/css/app.css?v=47" />
-  <link rel="stylesheet" href="/css/login.css?v=47" />
+  <link rel="stylesheet" href="/css/tokens.css?v=50" />
+  <link rel="stylesheet" href="/css/app.css?v=50" />
+  <link rel="stylesheet" href="/css/login.css?v=50" />
+  <script>
+    try {
+      var __v = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view");
+      if (__v && __v !== "home" && __v !== "chat") {
+        document.addEventListener("DOMContentLoaded", function () {
+          var home = document.getElementById("view-home");
+          var target = document.getElementById("view-" + __v);
+          if (home && target) {
+            home.classList.remove("active");
+            target.classList.add("active");
+          }
+        });
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body class="framed">
   <div class="phone-shell app-root">
@@ -41,13 +56,17 @@
       </div>
     </header>
     <div class="offline-banner" id="offlineBanner" role="status"></div>
+    <div id="matchBanner" class="match-banner hidden" role="alert" aria-live="assertive"></div>
+    <div id="ptrBar" class="ptr-bar" aria-hidden="true">
+      <div class="ptr-track"><div class="ptr-spinner"></div></div>
+    </div>
 
     <section class="view active" id="view-home">
       <div id="homeTicker" class="home-ticker hidden"></div>
       <div class="hello">
         <div>
           <h2>Merhaba, <b id="helloName">...</b></h2>
-          <p>Görevde olduğun her an, güven daha güçlü.</p>
+          <p id="helloDays" class="hello-days">Gün: <b id="homeDays">0</b></p>
         </div>
         <div class="date-chip">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
@@ -58,13 +77,22 @@
         </div>
       </div>
 
-      <div class="stats">
-        <div class="stat g"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"/></svg></div><div class="meta"><span>Giriş</span><b id="st-giris">0</b></div></div>
-        <div class="stat r"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H3v-6"/><path d="M14 10L3 21"/><path d="M21 10V4a1 1 0 0 0-1-1H8"/></svg></div><div class="meta"><span>Çıkış</span><b id="st-cikis">0</b></div></div>
-        <div class="stat b"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="meta"><span>İçeride</span><b id="st-iceride">0</b></div></div>
-        <div class="stat o"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg></div><div class="meta"><span>Görüşme</span><b id="st-gorusme">0</b></div></div>
-        <div class="stat p"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div><div class="meta"><span>Ziyaretçi</span><b id="st-ziyaretci">0</b></div></div>
-        <div class="stat c"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></div><div class="meta"><span>Sevkiyat</span><b id="st-sevkiyat">0</b></div></div>
+      <div class="stats-block">
+        <div class="stats-label">Aylık / Toplam</div>
+        <div class="stats mini">
+          <div class="stat g"><div class="meta"><span>Toplam Giriş</span><b id="st-total-giris">0</b></div></div>
+          <div class="stat b"><div class="meta"><span>Aylık Giriş</span><b id="st-month-giris">0</b></div></div>
+          <div class="stat c"><div class="meta"><span>Toplam Sevkiyat</span><b id="st-month-sevkiyat">0</b></div></div>
+          <div class="stat o"><div class="meta"><span>Toplam Görüşme</span><b id="st-month-gorusme">0</b></div></div>
+          <div class="stat p"><div class="meta"><span>Toplam Çalışma</span><b id="st-month-calisma">0</b></div></div>
+        </div>
+        <div class="stats-label today">Bugün</div>
+        <div class="stats mini today-stats">
+          <div class="stat g"><div class="meta"><span>Bugün Giriş</span><b id="st-giris">0</b></div></div>
+          <div class="stat c"><div class="meta"><span>Sevkiyat</span><b id="st-sevkiyat">0</b></div></div>
+          <div class="stat o"><div class="meta"><span>Görüşme</span><b id="st-gorusme">0</b></div></div>
+          <div class="stat p"><div class="meta"><span>Çalışma</span><b id="st-calisma">0</b></div></div>
+        </div>
       </div>
 
       <div class="section moves-sec">
@@ -82,17 +110,17 @@
           <h3>Hızlı Erişim</h3>
         </div>
         <div class="quick">
-          <button class="qcard mini" type="button" id="homeBulkExit">
+          <button class="qcard mini write-only" type="button" id="homeBulkExit">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H3v-6"/><path d="M14 10L3 21"/><path d="M21 10V4a1 1 0 0 0-1-1H8"/></svg>
             <div><b>Toplu Çıkış</b><span>Firmaya göre</span></div>
           </button>
-          <button class="qcard mini" type="button" id="homeCargoBtn">
+          <button class="qcard mini write-only" type="button" id="homeCargoBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-            <div><b>Kargo</b><span>Bildirim gönder</span></div>
+            <div><b>Kargo</b><span>Bildirim + foto</span></div>
           </button>
-          <button class="qcard mini" type="button" id="homeNoteBtn">
+          <button class="qcard mini write-only" type="button" id="homeNoteBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M8 11h8M8 15h6"/></svg>
-            <div><b>Not</b><span>Herkese ilet</span></div>
+            <div><b>Not</b><span>Defter + foto</span></div>
           </button>
         </div>
       </div>
@@ -352,6 +380,14 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M6 21v-2a4 4 0 0 1 3-3.87"/><path d="M8.2 5.2 6.4 3.6M15.8 5.2 17.6 3.6M12 2.4V1"/><path d="M14.5 21v-2a3.5 3.5 0 0 0-2.2-3.2"/><path d="M4 14h3l1 2h2"/></svg>
             Çalışma
           </button>
+          <button type="button" class="reg-tab" data-type="kargo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            Kargo
+          </button>
+          <button type="button" class="reg-tab" data-type="yemek">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10h16v10H4z"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/><path d="M12 14v3"/></svg>
+            Yemek
+          </button>
         </div>
 
         <form class="reg-card" id="visitorForm">
@@ -367,6 +403,11 @@
               <p id="regTypeDesc">Proje, bakım, onarım veya geçici çalışma için gelen ziyaretçiler.</p>
             </div>
           </div>
+          <div id="regCargoOpts" class="reg-cargo-opts hidden">
+            <button type="button" class="cargo-act" data-cargo="al">Kargo Teslim Alacak</button>
+            <button type="button" class="cargo-act" data-cargo="ver">Kargo Teslim Edecek</button>
+          </div>
+          <input type="hidden" id="cargoAction" value="" />
 
           <div id="regFields"></div>
 
@@ -379,33 +420,18 @@
     </section>
 
     <section class="view" id="view-alerts">
-      <header class="page-top">
-        <button type="button" class="page-icon" id="alertOpenMenu" aria-label="Menü">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-        </button>
-        <div class="page-brand">
-          <strong class="gold-text">S-360</strong>
-          <em>GÜVENLİ DAHA YARINLAR</em>
-        </div>
-        <div class="date-chip page-date">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
-          <div>
-            <strong class="js-date-full">—</strong>
-            <span class="js-date-week">—</span>
-          </div>
-        </div>
-      </header>
-      <div class="page-body vis-page">
-        <div class="page-title-row">
-          <div>
-            <h2>Haber Ver</h2>
-            <p>Beklenen ziyaretçi ekleyin. Kayıt eşleşince anında bildirim gider.</p>
-          </div>
-        </div>
+      <div class="page-pad">
+        <h2 class="page-title" style="margin-bottom:4px">Haber Ver</h2>
+        <p style="margin:0 0 12px;font-size:12px;color:#999">Beklenen ziyaretçi ekleyin. Kayıt eşleşince anında bildirim gider.</p>
         <form class="alert-form" id="alertForm">
-          <label>İsim soyisim *
-            <input name="full_name" placeholder="ÜMİT YILMAZ" required autocomplete="off" />
-          </label>
+          <div class="alert-row">
+            <label>Ad *
+              <input name="first_name" placeholder="ÜMİT" required autocomplete="off" />
+            </label>
+            <label>Soyad *
+              <input name="last_name" placeholder="YILMAZ" required autocomplete="off" />
+            </label>
+          </div>
           <label>Firma
             <input name="company" placeholder="ABC LOJİSTİK" autocomplete="off" />
           </label>
@@ -415,11 +441,11 @@
           <div class="alert-enter">
             <span>İçeri durumu</span>
             <div class="alert-enter-opts">
-              <label class="alert-chip">
+              <label class="alert-chip enter-yes">
                 <input type="radio" name="will_enter" value="1" checked />
                 <em>İçeri GİRECEK</em>
               </label>
-              <label class="alert-chip">
+              <label class="alert-chip enter-no">
                 <input type="radio" name="will_enter" value="0" />
                 <em>İçeri GİRMEYECEK</em>
               </label>
@@ -486,7 +512,7 @@
           <div class="profile-avatar" id="profileAvatar">S</div>
           <h2 class="page-title" style="margin:0" id="profileName">—</h2>
           <span id="profileRole" style="color:#aaa;font-size:13px">—</span>
-          <p style="margin:8px 0 0;color:var(--gold-2);font-size:12px;font-weight:700">Çalışılan gün: <b id="profileDays">0</b></p>
+          <span id="profileTitle" style="display:block;margin-top:4px;color:var(--gold-2);font-size:12px;font-weight:700"></span>
         </div>
         <form class="list-card profile-grid" id="profileForm" style="padding:12px">
           <label>Ad Soyad<input name="full_name" id="pfName" /></label>
@@ -496,6 +522,23 @@
               <option value="">—</option>
               <option value="erkek">Erkek</option>
               <option value="kadin">Kadın</option>
+            </select>
+          </label>
+          <label>Medeni durum
+            <select name="marital_status" id="pfMarital">
+              <option value="">—</option>
+              <option value="bekar">Bekar</option>
+              <option value="evli">Evli</option>
+              <option value="bosanmis">Boşanmış</option>
+            </select>
+          </label>
+          <label>Kan grubu
+            <select name="blood_type" id="pfBlood">
+              <option value="">—</option>
+              <option>0 Rh+</option><option>0 Rh-</option>
+              <option>A Rh+</option><option>A Rh-</option>
+              <option>B Rh+</option><option>B Rh-</option>
+              <option>AB Rh+</option><option>AB Rh-</option>
             </select>
           </label>
           <label>Silah
@@ -511,15 +554,48 @@
           <label>Mont<input name="coat_size" id="pfCoat" /></label>
           <label>Kazak<input name="sweater_size" id="pfSweater" /></label>
           <label>İşe başlama<input type="date" name="start_date" id="pfStart" /></label>
-          <label style="grid-column:1/-1">Foto URL<input name="photo_url" id="pfPhoto" placeholder="https://..." /></label>
+          <label style="grid-column:1/-1">Foto
+            <input type="file" id="pfPhotoFile" accept="image/*" />
+            <input type="hidden" name="photo_url" id="pfPhoto" />
+          </label>
           <button class="btn-gold" type="submit" style="grid-column:1/-1;margin-top:6px">Profili Kaydet</button>
+          <button class="vis-act edit" type="button" id="openPasswordView" style="grid-column:1/-1">Şifre Değiştir</button>
         </form>
-        <form class="list-card" id="passwordForm" style="padding:12px;margin-top:12px;display:grid;gap:8px">
-          <b>Şifre Değiştir</b>
-          <input type="password" name="current" placeholder="Mevcut şifre" required />
-          <input type="password" name="next" placeholder="Yeni şifre" required />
+      </div>
+    </section>
+    <section class="view" id="view-password">
+      <div class="page-pad">
+        <h2 class="page-title">Şifre Değiştir</h2>
+        <form class="list-card" id="passwordForm" style="padding:12px;display:grid;gap:8px">
+          <input type="password" name="current" placeholder="Mevcut şifre" required autocomplete="current-password" />
+          <input type="password" name="next" placeholder="Yeni şifre" required autocomplete="new-password" />
           <button class="btn-gold" type="submit">Şifreyi Güncelle</button>
+          <button class="vis-act" type="button" data-view="profile">Profile Dön</button>
         </form>
+      </div>
+    </section>
+    <section class="view" id="view-reminders">
+      <div class="page-pad">
+        <h2 class="page-title">Hatırlatıcılar</h2>
+        <p style="font-size:12px;color:#999;margin:0 0 10px">Sadece yönetici. Belirli saat aralığında otomatik bildirim.</p>
+        <form class="list-card" id="reminderForm" style="padding:12px;display:grid;gap:8px;margin-bottom:12px">
+          <input name="title" placeholder="Başlık (ör. Devriye saati geldi)" required />
+          <textarea name="body" rows="2" placeholder="Açıklama / durum raporu hatırlatması"></textarea>
+          <div class="alert-row">
+            <label>Başlangıç<input type="time" name="start_time" value="20:00" required /></label>
+            <label>Bitiş<input type="time" name="end_time" value="06:00" /></label>
+          </div>
+          <label>Aralık (dk)<input type="number" name="interval_min" value="120" min="15" /></label>
+          <label>Günler
+            <select name="days">
+              <option value="everyday">Her gün</option>
+              <option value="mon,tue,wed,thu,fri">Hafta içi</option>
+              <option value="sat,sun">Hafta sonu</option>
+            </select>
+          </label>
+          <button class="btn-gold" type="submit">Hatırlatıcı Ekle</button>
+        </form>
+        <div id="reminderList" class="list-card"></div>
       </div>
     </section>
     <section class="view" id="view-chat" hidden aria-hidden="true"></section>
@@ -672,6 +748,11 @@
           Duyurular
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
         </button>
+        <button data-view="reminders" class="admin-only hidden" id="remindersMenuBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          Hatırlatıcı
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
         <button data-view="settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8"/></svg>
           Ayarlar
@@ -709,9 +790,9 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=47"></script>
-  <script src="/js/api.js?v=47"></script>
-  <script src="/js/app.js?v=47"></script>
-  <script src="/js/pwa.js?v=47"></script>
+  <script src="/js/haptic.js?v=50"></script>
+  <script src="/js/api.js?v=50"></script>
+  <script src="/js/app.js?v=50"></script>
+  <script src="/js/pwa.js?v=50"></script>
 </body>
 </html>

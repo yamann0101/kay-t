@@ -5,6 +5,9 @@ let copyTemplates = {
   sevkiyat: "SEVKİYAT YAPMAK İÇİN GİRİŞ YAPTI KONTROLLER YAPILDI İLGİLİ KİŞİLER BİLGİLENDİRİLDİ VE GİRİŞ YAPTI",
   gorusme: "GÖRÜŞME YAPMAK İÇİN GİRİŞ YAPTI KONTROLLER YAPILDI İLGİLİ KİŞİLER BİLGİLENDİRİLDİ VE GİRİŞ YAPTI",
   calisma: "ÇALIŞMA YAPMAK İÇİN GİRİŞ YAPTI KONTROLLER YAPILDI İLGİLİ KİŞİLER BİLGİLENDİRİLDİ VE GİRİŞ YAPTI",
+  kargo_al: "KARGOYU TESLİM ALMAK İÇİN GİRİŞ YAPTI KONTROLLER YAPILDI VE GİRİŞ YAPTI",
+  kargo_ver: "KARGO TESLİM ETMEK İÇİN GİRİŞ YAPTI KONTROLLER YAPILDI VE GİRİŞ YAPTI",
+  yemek: "YEMEK FİRMASI PERSONELLERE YEMEK GETİRDİ KONTROLLER YAPILDI VE ÇIKIŞ YAPTI",
 };
 let shiftReminders = { enabled: true, morning: "08:00", lunch: "12:00", evening: "18:00" };
 let lastNotifStamp = "";
@@ -64,6 +67,32 @@ const VISIT_META = {
     info: true,
     checkout: false,
   },
+  kargo: {
+    title: "Kargo",
+    desc: "Kargo teslim alma veya teslim etme için gelen ziyaretçiler.",
+    first: "Can",
+    last: "Yıldız",
+    company: "Yurtiçi Kargo",
+    notes: "Teslim alacak / teslim edecek seçin",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+    hint: true,
+    info: true,
+    checkout: true,
+    cargo: true,
+  },
+  yemek: {
+    title: "Yemek Siparişi",
+    desc: "Personellere yemek getiren firma kayıtları.",
+    first: "Ayşe",
+    last: "Kaya",
+    company: "Lezzet Yemek",
+    notes: "Personellere yemek getirdi",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10h16v10H4z"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/><path d="M12 14v3"/></svg>`,
+    hint: false,
+    info: false,
+    checkout: true,
+    food: true,
+  },
 };
 
 let lastMainView = "home";
@@ -111,6 +140,8 @@ function showView(name) {
   if (name === "patrol") loadPatrols();
   if (name === "announcements") loadAnn();
   if (name === "profile") loadProfile();
+  if (name === "reminders") loadReminders();
+  applyRoleUi();
 }
 
 function openChatPanel() {
@@ -142,16 +173,62 @@ function closeChatPanel(restoreView = true) {
 }
 
 function bindChatKeyboard() {
-  if (window.__chatKbBound || !window.visualViewport) return;
-  window.__chatKbBound = true;
-  const sync = () => {
-    const vv = window.visualViewport;
-    const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    document.documentElement.style.setProperty("--kb", `${inset}px`);
-  };
-  window.visualViewport.addEventListener("resize", sync);
-  window.visualViewport.addEventListener("scroll", sync);
-  sync();
+  bindGlobalKeyboard();
+}
+
+function applyRoleUi() {
+  const role = window.currentUser?.role || "guard";
+  const root = document.querySelector(".app-root");
+  root?.classList.toggle("viewer-mode", role === "viewer");
+  root?.classList.toggle("admin-mode", role === "admin");
+  document.querySelectorAll(".admin-only").forEach((el) => {
+    el.classList.toggle("hidden", role !== "admin");
+  });
+  const fabFace = document.querySelector(".fab-face");
+  const fabSmall = document.querySelector(".fab-slot small");
+  if (role === "viewer") {
+    if (fabFace) fabFace.textContent = "●";
+    if (fabSmall) fabSmall.textContent = "Canlı";
+    document.getElementById("fabRegister")?.setAttribute("aria-label", "Canlı Takip");
+  } else {
+    if (fabFace) fabFace.textContent = "+";
+    if (fabSmall) fabSmall.textContent = "Kayıt";
+    document.getElementById("fabRegister")?.setAttribute("aria-label", "Ziyaretçi Kaydı");
+  }
+  // viewer tabs: left visitors, center live/home, right directory
+  const tabs = document.querySelectorAll(".tabbar-row > .tab");
+  if (tabs.length >= 4 && role === "viewer") {
+    tabs[0].dataset.view = "visitors";
+    tabs[0].querySelector("span").textContent = "Ziyaret";
+    tabs[1].classList.add("hidden");
+    tabs[2].dataset.view = "directory";
+    tabs[2].querySelector("span").textContent = "Rehber";
+    // 4th may be directory originally - hide duplicate
+    if (tabs[3]) tabs[3].classList.add("hidden");
+  } else if (tabs.length >= 4) {
+    tabs[0].dataset.view = "home";
+    tabs[0].querySelector("span").textContent = "Ana";
+    tabs[1].classList.remove("hidden");
+    tabs[1].dataset.view = "keys";
+    tabs[1].querySelector("span").textContent = "Anahtar";
+    tabs[2].dataset.view = "visitors";
+    tabs[2].querySelector("span").textContent = "Ziyaret";
+    if (tabs[3]) {
+      tabs[3].classList.remove("hidden");
+      tabs[3].dataset.view = "directory";
+      tabs[3].querySelector("span").textContent = "Rehber";
+    }
+  }
+  document.querySelectorAll(".write-only").forEach((el) => {
+    el.classList.toggle("hidden", role === "viewer");
+  });
+}
+
+function roleLabelOf(role) {
+  if (role === "admin") return "Admin";
+  if (role === "viewer") return "İzleyici";
+  if (role === "supervisor") return "Süpervizör";
+  return "Güvenlik";
 }
 
 function syncChatSwState() {
@@ -227,12 +304,15 @@ async function loadHome() {
     api("/api/app/summary"),
     api("/api/app/activity").catch(() => ({ items: [] })),
   ]);
-  document.getElementById("st-giris").textContent = sum.giris;
-  document.getElementById("st-cikis").textContent = sum.cikis;
-  document.getElementById("st-iceride").textContent = sum.iceride;
-  document.getElementById("st-gorusme").textContent = sum.gorusme;
-  document.getElementById("st-ziyaretci").textContent = sum.ziyaretci;
-  document.getElementById("st-sevkiyat").textContent = sum.sevkiyat;
+  document.getElementById("st-total-giris").textContent = sum.total_giris ?? 0;
+  document.getElementById("st-month-giris").textContent = sum.month_giris ?? 0;
+  document.getElementById("st-month-sevkiyat").textContent = sum.month_sevkiyat ?? 0;
+  document.getElementById("st-month-gorusme").textContent = sum.month_gorusme ?? 0;
+  document.getElementById("st-month-calisma").textContent = sum.month_calisma ?? 0;
+  document.getElementById("st-giris").textContent = sum.giris ?? 0;
+  document.getElementById("st-sevkiyat").textContent = sum.sevkiyat ?? 0;
+  document.getElementById("st-gorusme").textContent = sum.gorusme ?? 0;
+  document.getElementById("st-calisma").textContent = sum.calisma ?? 0;
 
   const items = act.items || [];
   document.getElementById("moves").innerHTML = items.length
@@ -348,7 +428,7 @@ async function loadHomeNotes() {
       ? list
           .map(
             (n) =>
-              `<div class="hn-item"><b>${escHtml(n.kind === "cargo" ? "Kargo" : "Not")}</b> · ${escHtml(n.created_by_name || "")}: ${escHtml(n.title)}${n.body ? ` — ${escHtml(n.body)}` : ""}</div>`
+              `<div class="hn-item"><b>${escHtml(n.kind === "cargo" ? "Kargo" : "Not")}</b> · ${escHtml(n.created_by_name || "")}: ${escHtml(n.title)}${n.body ? ` — ${escHtml(n.body)}` : ""}${n.photo_url ? ` <img class="hn-thumb" src="${escHtml(n.photo_url)}" alt="" />` : ""}</div>`
           )
           .join("")
       : `<small style="color:#999">Kargo / not yok</small>`;
@@ -366,11 +446,33 @@ function openNoteSheet(kind) {
       <input name="title" value="${isCargo ? "Kargo" : "Not"}" required />
       <label>Açıklama</label>
       <textarea name="body" rows="3" placeholder="Detay yazın"></textarea>
+      <label>Fotoğraf
+        <input type="file" id="notePhoto" accept="image/*" capture="environment" />
+      </label>
+      <img id="notePhotoPrev" class="note-photo-prev hidden" alt="" />
       <button class="sheet-save" type="submit">Herkese Bildir</button>
     </form>`
   );
+  let photoData = "";
+  const file = document.getElementById("notePhoto");
+  const prev = document.getElementById("notePhotoPrev");
+  file?.addEventListener("change", () => {
+    const f = file.files?.[0];
+    if (!f) return;
+    if (f.size > 1_800_000) return toast("Fotoğraf 1.5MB altında olmalı");
+    const reader = new FileReader();
+    reader.onload = () => {
+      photoData = String(reader.result || "");
+      if (prev) {
+        prev.src = photoData;
+        prev.classList.remove("hidden");
+      }
+    };
+    reader.readAsDataURL(f);
+  });
   document.getElementById("noteForm").onsubmit = async (e) => {
     e.preventDefault();
+    if (isViewer()) return toast("İzleyici modunda işlem yapılamaz");
     const fd = new FormData(e.target);
     try {
       await enablePush(true);
@@ -380,6 +482,7 @@ function openNoteSheet(kind) {
           kind: isCargo ? "cargo" : "note",
           title: String(fd.get("title") || "").trim(),
           body: String(fd.get("body") || "").trim(),
+          photo_url: photoData || null,
         },
       });
       toast(isCargo ? "Kargo bildirimi gönderildi" : "Not iletildi");
@@ -390,6 +493,14 @@ function openNoteSheet(kind) {
       toast(err.message || "Gönderilemedi");
     }
   };
+}
+
+function isViewer() {
+  return window.currentUser?.role === "viewer";
+}
+
+function canWrite() {
+  return !isViewer();
 }
 
 function upsertVisitorCache(v) {
@@ -908,19 +1019,56 @@ function openNewKeySheet() {
 }
 
 function foldSearch(value) {
-  return String(value || "")
-    .replace(/İ/g, "I")
-    .replace(/ı/g, "I")
-    .replace(/i/g, "I")
-    .replace(/I/g, "I")
-    .replace(/[Şş]/g, "S")
-    .replace(/[Ğğ]/g, "G")
-    .replace(/[Üü]/g, "U")
-    .replace(/[Öö]/g, "O")
-    .replace(/[Çç]/g, "C")
-    .toUpperCase()
+  const map = {
+    Ş: "S",
+    ş: "S",
+    İ: "I",
+    I: "I",
+    ı: "I",
+    i: "I",
+    Ü: "U",
+    ü: "U",
+    Ö: "O",
+    ö: "O",
+    Ç: "C",
+    ç: "C",
+    Ğ: "G",
+    ğ: "G",
+  };
+  let out = "";
+  for (const ch of String(value || "")) {
+    out += map[ch] || ch;
+  }
+  return out
+    .toLocaleUpperCase("en-US")
+    .replace(/[^A-Z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function showMatchBanner({ title, body, willEnter }) {
+  const box = document.getElementById("matchBanner");
+  if (!box) return;
+  const enter = willEnter !== false;
+  box.className = `match-banner open ${enter ? "yes" : "no"}`;
+  box.innerHTML = `
+    <div class="match-banner-ico">${enter ? "●" : "●"}</div>
+    <div class="match-banner-txt">
+      <b>${escHtml(title || "Beklenen ziyaretçi")}</b>
+      <span>${escHtml(body || "")}</span>
+    </div>
+    <button type="button" class="match-banner-x" aria-label="Kapat">×</button>`;
+  box.querySelector(".match-banner-x").onclick = () => {
+    box.classList.remove("open");
+    box.classList.add("hidden");
+  };
+  clearTimeout(window.__matchBannerTimer);
+  window.__matchBannerTimer = setTimeout(() => {
+    box.classList.remove("open");
+    box.classList.add("hidden");
+  }, 14000);
+  if (window.haptic) window.haptic("ok");
+  if (typeof playNotifyBeep === "function") playNotifyBeep();
 }
 
 function bindUppercase(root = document) {
@@ -946,7 +1094,13 @@ function bindUppercase(root = document) {
   });
 }
 
-const TYPE_TR = { sevkiyat: "Sevkiyat", gorusme: "Görüşme", calisma: "Çalışma" };
+const TYPE_TR = {
+  sevkiyat: "Sevkiyat",
+  gorusme: "Görüşme",
+  calisma: "Çalışma",
+  kargo: "Kargo",
+  yemek: "Yemek Siparişi",
+};
 let visitorCache = [];
 let visPage = 1;
 const VIS_PAGE = 8;
@@ -958,10 +1112,12 @@ let chatReplyTo = null;
 let lastChatStamp = "";
 
 function visTypeOf(v) {
-  if (v.visit_type === "gorusme" || v.visit_type === "calisma" || v.visit_type === "sevkiyat") return v.visit_type;
+  if (["gorusme", "calisma", "sevkiyat", "kargo", "yemek"].includes(v.visit_type)) return v.visit_type;
   const c = String(v.category || "").toLowerCase();
   if (c.includes("görüş") || c.includes("gorus")) return "gorusme";
   if (c.includes("çalış") || c.includes("calis")) return "calisma";
+  if (c.includes("kargo")) return "kargo";
+  if (c.includes("yemek")) return "yemek";
   return "sevkiyat";
 }
 
@@ -1037,6 +1193,8 @@ function filteredVisitors() {
 function visIcon(type) {
   if (type === "gorusme") return VISIT_META.gorusme.icon;
   if (type === "calisma") return VISIT_META.calisma.icon;
+  if (type === "kargo") return VISIT_META.kargo.icon;
+  if (type === "yemek") return VISIT_META.yemek.icon;
   return VISIT_META.sevkiyat.icon;
 }
 
@@ -1047,6 +1205,8 @@ function renderVisitors() {
     sevkiyat: all.filter((v) => visTypeOf(v) === "sevkiyat").length,
     gorusme: all.filter((v) => visTypeOf(v) === "gorusme").length,
     calisma: all.filter((v) => visTypeOf(v) === "calisma").length,
+    kargo: all.filter((v) => visTypeOf(v) === "kargo").length,
+    yemek: all.filter((v) => visTypeOf(v) === "yemek").length,
   };
   const active = visTypeFilter || "all";
   document.getElementById("visPills").innerHTML = [
@@ -1054,6 +1214,8 @@ function renderVisitors() {
     ["sevkiyat", "Sevkiyat", counts.sevkiyat, visIcon("sevkiyat")],
     ["gorusme", "Görüşme", counts.gorusme, visIcon("gorusme")],
     ["calisma", "Çalışma", counts.calisma, visIcon("calisma")],
+    ["kargo", "Kargo", counts.kargo, visIcon("kargo")],
+    ["yemek", "Yemek", counts.yemek, visIcon("yemek")],
   ]
     .map(
       ([key, label, n, ico]) =>
@@ -1117,7 +1279,7 @@ function renderVisitors() {
                 <button type="button" class="vis-copy-mini" data-vis-copy="${v.id}">Kopyala</button>
                 ${canEditVisitor(v) ? `<button type="button" class="edit" data-vis-edit="${v.id}">Düzenle</button>` : ""}
                 ${canEditVisitor(v) ? `<button type="button" class="del" data-vis-del="${v.id}">Sil</button>` : ""}
-                ${inside ? `<button type="button" data-vis-exit="${v.id}">Çıkış</button>` : ""}
+                ${inside && canExitVisitor() ? `<button type="button" data-vis-exit="${v.id}">Çıkış</button>` : ""}
               </div>
               <span class="vis-chev">${chev}</span>
             </div>
@@ -1129,15 +1291,18 @@ function renderVisitors() {
   document.getElementById("visPager").innerHTML =
     shown < list.length
       ? `<button type="button" class="vis-more" id="visMore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg> Daha Fazla Göster</button>
-         <button type="button" class="vis-more" id="visBulkExit" style="margin-top:6px">Toplu Çıkış</button>`
+         ${canWrite() ? `<button type="button" class="vis-more" id="visBulkExit" style="margin-top:6px">Toplu Çıkış</button>` : ""}`
       : list.length
-        ? `<span>Toplam ${list.length} kişi</span><button type="button" class="vis-more" id="visBulkExit" style="margin-top:6px">Toplu Çıkış</button>`
+        ? `<span>Toplam ${list.length} kişi</span>${canWrite() ? `<button type="button" class="vis-more" id="visBulkExit" style="margin-top:6px">Toplu Çıkış</button>` : ""}`
         : "";
   document.getElementById("visMore")?.addEventListener("click", () => {
     visPage += 1;
     renderVisitors();
   });
-  document.getElementById("visBulkExit")?.addEventListener("click", () => openBulkExitSheet());
+  document.getElementById("visBulkExit")?.addEventListener("click", () => {
+    if (!canWrite()) return toast("İzleyici modunda işlem yok");
+    openBulkExitSheet();
+  });
   document.querySelectorAll("[data-vis-open]").forEach((card) => {
     card.onclick = (e) => {
       if (e.target.closest("[data-vis-copy],[data-vis-edit],[data-vis-del],[data-vis-exit]")) return;
@@ -1188,9 +1353,13 @@ function renderVisitors() {
 
 function canEditVisitor(v) {
   const me = window.currentUser;
-  if (!me) return false;
+  if (!me || me.role === "viewer") return false;
   if (me.role === "admin" || me.role === "supervisor") return true;
   return String(v.created_by || "") === String(me.id);
+}
+
+function canExitVisitor() {
+  return canWrite();
 }
 
 async function openBulkExitSheet() {
@@ -1199,9 +1368,12 @@ async function openBulkExitSheet() {
     if (!items?.length) return toast("İçeride kimse yok");
     openSheet(
       "Toplu Çıkış",
-      `<div class="sheet-kv">${items
+      `<div class="bulk-list">${items
         .map(
-          (c) => `<button type="button" class="vis-act edit" style="width:100%;margin:4px 0" data-bulk-co="${escHtml(c.company)}">${escHtml(c.company)} · ${c.n} kişi</button>`
+          (c) => `<div class="bulk-row">
+            <div><b>${escHtml(c.company)}</b><small>${c.n} kişi içeride</small></div>
+            <button type="button" class="btn-gold bulk-exit-btn" data-bulk-co="${escHtml(c.company)}">Çıkış Yap</button>
+          </div>`
         )
         .join("")}</div>`
     );
@@ -1254,14 +1426,15 @@ async function loadAlerts() {
           .map((a) => {
             const willEnter = !(a.will_enter === false || a.will_enter === "false" || a.will_enter === 0);
             const arrived = a.matched_at ? "Geldi" : a.active === false ? "Kaldırıldı" : "Bekleniyor";
+            const name = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.full_name;
             return `<article class="alert-card">
               <div class="who">
                 <div class="who-top">
-                  <b>${escHtml(a.full_name)}</b>
+                  <b>${escHtml(name)}</b>
                   <span class="vis-badge ${a.matched_at ? "out" : "in"}">${arrived}</span>
                 </div>
                 <small>${escHtml(a.company || "Firma yok")}</small>
-                <div class="meta"><span>${willEnter ? "İçeri GİRECEK" : "İçeri GİRMEYECEK"}</span></div>
+                <div class="meta"><span class="enter-flag ${willEnter ? "yes" : "no"}">${willEnter ? "İçeri GİRECEK" : "İçeri GİRMEYECEK"}</span></div>
                 ${a.notes ? `<div class="hist">${escHtml(a.notes)}</div>` : ""}
               </div>
               <button type="button" class="vis-act exit" data-alert-del="${a.id}">Sil</button>
@@ -1338,7 +1511,7 @@ async function openVisitorSheet(id, mode) {
          <button type="button" class="vis-act" id="sheetCopyBtn">Kopyala</button>
          ${canEditVisitor(v) ? `<button type="button" class="vis-act edit" id="sheetEditBtn">Düzenle</button>` : ""}
          ${canEditVisitor(v) ? `<button type="button" class="vis-act" id="sheetDelBtn" style="border-color:rgba(239,68,68,.5);color:#f87171">Sil</button>` : ""}
-         ${visInside(v) ? `<button type="button" class="vis-act exit" id="sheetExitBtn">Çıkış</button>` : ""}
+         ${visInside(v) && canExitVisitor() ? `<button type="button" class="vis-act exit" id="sheetExitBtn">Çıkış</button>` : ""}
        </div>`
     );
     document.getElementById("sheetCopyBtn").onclick = () => copyVisitor(v);
@@ -1548,7 +1721,19 @@ function visitorPeopleNames(v) {
 function copyVisitorText(v) {
   const type = visTypeOf(v);
   const names = visitorPeopleNames(v);
-  let desc = copyTemplates[type] || copyTemplates.calisma || "";
+  let desc = String(v.notes || "").trim();
+  if (!desc) {
+    if (type === "kargo") {
+      const n = foldSearch(v.notes || v.category || "");
+      desc = n.includes("TESLIM ET") || n.includes("TESLİM ET")
+        ? copyTemplates.kargo_ver
+        : copyTemplates.kargo_al;
+    } else if (type === "yemek") {
+      desc = copyTemplates.yemek || "";
+    } else {
+      desc = copyTemplates[type] || copyTemplates.calisma || "";
+    }
+  }
   if (names.length > 1) desc = desc.replace(/YAPTI(?!LAR)/gi, "YAPTILAR");
   desc = sentenceCaseTr(desc);
   const time = v.entry_time || (v.created_at ? fmtTime(v.created_at) : "");
@@ -2035,10 +2220,31 @@ function setVisitTab(type) {
   if (wrap) wrap.style.display = meta.checkout ? "flex" : "none";
   const exited = document.getElementById("vExited");
   if (!meta.checkout && exited) exited.checked = false;
+  if (meta.food && exited) exited.checked = true;
   const hint = document.getElementById("plateHint");
   const info = document.getElementById("regInfo");
   if (hint) hint.style.display = meta.hint && fieldEl("plate") ? "" : "none";
   if (info) info.style.display = meta.info && fieldEl("plate") ? "" : "none";
+  const cargoOpts = document.getElementById("regCargoOpts");
+  if (cargoOpts) cargoOpts.classList.toggle("hidden", !meta.cargo);
+  document.getElementById("cargoAction").value = "";
+  document.querySelectorAll(".cargo-act").forEach((b) => b.classList.remove("on"));
+  if (meta.food && notes) {
+    notes.value = copyTemplates.yemek || meta.notes;
+  }
+}
+
+function applyCargoAction(kind) {
+  const notes = fieldEl("notes");
+  const key = kind === "ver" ? "kargo_ver" : "kargo_al";
+  const text = copyTemplates[key] || (kind === "ver"
+    ? "KARGO TESLİM ETMEK İÇİN GİRİŞ YAPTI"
+    : "KARGOYU TESLİM ALMAK İÇİN GİRİŞ YAPTI");
+  if (notes) notes.value = text;
+  document.getElementById("cargoAction").value = kind;
+  document.querySelectorAll(".cargo-act").forEach((b) => {
+    b.classList.toggle("on", b.dataset.cargo === kind);
+  });
 }
 
 async function openVisitorRegister() {
@@ -2062,8 +2268,17 @@ async function openVisitorRegister() {
 document.querySelectorAll(".reg-tab").forEach((btn) => {
   btn.addEventListener("click", () => setVisitTab(btn.dataset.type));
 });
-document.getElementById("fabRegister").onclick = () => openVisitorRegister();
-document.getElementById("openRegisterMenu").onclick = () => openVisitorRegister();
+document.querySelectorAll(".cargo-act").forEach((btn) => {
+  btn.addEventListener("click", () => applyCargoAction(btn.dataset.cargo));
+});
+document.getElementById("fabRegister").onclick = () => {
+  if (isViewer()) showView("home");
+  else openVisitorRegister();
+};
+document.getElementById("openRegisterMenu").onclick = () => {
+  if (isViewer()) return toast("İzleyici modunda kayıt yapılamaz");
+  openVisitorRegister();
+};
 document.getElementById("regBack").onclick = () => showView("home");
 
 document.getElementById("visitorForm").addEventListener("submit", async (e) => {
@@ -2077,6 +2292,20 @@ document.getElementById("visitorForm").addEventListener("submit", async (e) => {
   body.entry_type = body.plate ? "ARAÇLI" : "YAYAN";
   body.vehicle_status = body.entry_type;
   body.companions = readCompanions();
+  if (currentVisitType === "kargo") {
+    const act = document.getElementById("cargoAction")?.value;
+    if (!act) {
+      toast("Kargo için Teslim Alacak veya Teslim Edecek seçin");
+      return;
+    }
+    if (!String(body.notes || "").trim()) {
+      applyCargoAction(act);
+      body.notes = fieldEl("notes")?.value || "";
+    }
+  }
+  if (currentVisitType === "yemek" && !String(body.notes || "").trim()) {
+    body.notes = copyTemplates.yemek || "";
+  }
   if (body.visit_date && String(body.visit_date).includes("-")) {
     body.visit_date = isoToTr(body.visit_date);
   }
@@ -2092,7 +2321,8 @@ document.getElementById("visitorForm").addEventListener("submit", async (e) => {
     if (data.queued) {
       toast(`Çevrimdışı kaydedildi · internet gelince gönderilecek${extra}`);
     } else {
-      const alertN = (data.alerts || []).length;
+      const alerts = data.alerts || [];
+      const alertN = alerts.length;
       toast(
         alertN
           ? `Beklenen ziyaretçi geldi · bildirim gönderildi${extra}`
@@ -2100,6 +2330,15 @@ document.getElementById("visitorForm").addEventListener("submit", async (e) => {
             ? `Araçlı giriş kaydedildi${extra}`
             : `Yayan giriş kaydedildi${extra}`
       );
+      if (alertN) {
+        const a = alerts[0];
+        const willEnter = !(a.will_enter === false || a.will_enter === "false" || a.will_enter === 0);
+        showMatchBanner({
+          title: willEnter ? "Beklenen · İçeri GİRECEK" : "Beklenen · İçeri GİRMEYECEK",
+          body: `${data.item?.full_name || a.full_name || ""}${a.company || data.item?.company ? ` · ${a.company || data.item?.company}` : ""}${a.notes ? ` · ${a.notes}` : ""}`,
+          willEnter,
+        });
+      }
     }
     clearVisitorForm(e.target);
     showView("home");
@@ -2219,32 +2458,42 @@ function confirmRefreshIfDirty() {
 
 function doAppReload() {
   if (!confirmRefreshIfDirty()) return;
-  location.reload();
+  try {
+    window.showPtrRefreshing?.();
+  } catch {
+    /* ignore */
+  }
+  setTimeout(() => location.reload(), 220);
 }
 
 document.getElementById("alertForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
+  const first = String(fd.get("first_name") || "").trim();
+  const last = String(fd.get("last_name") || "").trim();
   const body = {
-    full_name: String(fd.get("full_name") || "").trim(),
+    first_name: first,
+    last_name: last,
+    full_name: `${first} ${last}`.trim(),
     company: String(fd.get("company") || "").trim(),
     notes: String(fd.get("notes") || "").trim(),
     will_enter: String(fd.get("will_enter") || "1") !== "0",
   };
-  if (!body.full_name) return toast("İsim gerekli");
+  if (!body.first_name || !body.last_name) return toast("Ad ve soyad gerekli");
   try {
     await enablePush(true);
     await api("/api/app/alerts", { method: "POST", body });
     toast("Haber verildi · bildirim gönderildi");
     e.target.reset();
-    e.target.querySelector('input[name="will_enter"][value="1"]')?.setAttribute("checked", "checked");
+    const yes = e.target.querySelector('input[name="will_enter"][value="1"]');
+    if (yes) yes.checked = true;
     loadAlerts();
   } catch (err) {
     toast(err.message || "Kayıt başarısız");
   }
 });
 document.getElementById("visOpenMenu").onclick = openDrawer;
-document.getElementById("alertOpenMenu").onclick = openDrawer;
+document.getElementById("alertOpenMenu")?.addEventListener("click", openDrawer);
 document.getElementById("keyOpenMenu").onclick = openDrawer;
 document.getElementById("keyNewBtn").onclick = openNewKeySheet;
 document.getElementById("keySearch").addEventListener("input", renderKeys);
@@ -2347,11 +2596,12 @@ async function boot() {
     location.href = "/";
     return;
   }
-  const roleLabel =
-    me.role === "admin" ? "Yönetici" : me.role === "supervisor" ? "Süpervizör" : "Güvenlik Görevlisi";
+  const roleLabel = roleLabelOf(me.role);
   document.getElementById("helloName").textContent = me.full_name;
   document.getElementById("drawerName").textContent = me.full_name;
   document.getElementById("drawerRole").textContent = roleLabel;
+  const daysEl = document.getElementById("homeDays");
+  if (daysEl) daysEl.textContent = me.days_worked ?? "—";
   const initials = String(me.full_name || "S")
     .split(/\s+/)
     .filter(Boolean)
@@ -2368,14 +2618,36 @@ async function boot() {
   if (me.role === "admin") {
     document.getElementById("adminLink")?.classList.remove("hidden");
     document.getElementById("keyNewBtn")?.classList.remove("hidden");
+    document.getElementById("remindersMenuBtn")?.classList.remove("hidden");
   }
+  applyRoleUi();
   tickClock();
   setInterval(tickClock, 30_000);
+  // Önce sayfayı geri yükle — ana sayfa flash olmasın
+  let restored = "home";
+  try {
+    restored = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view") || "home";
+  } catch {
+    restored = "home";
+  }
+  if (location.hash.startsWith("#chat-")) {
+    openChatPanel();
+  } else if (restored === "chat") {
+    openChatPanel();
+  } else if (restored && restored !== "home") {
+    showView(restored);
+  } else if (isViewer()) {
+    showView("home");
+  }
   await loadSettings();
   await loadHome();
+  if (daysEl && window.currentUser?.days_worked != null) {
+    daysEl.textContent = window.currentUser.days_worked;
+  }
   await loadNotifs();
   enablePush();
   bindUppercase(document);
+  bindGlobalKeyboard();
   checkShiftTicker();
   updateOfflineBanner();
   flushOutbox().catch(() => {});
@@ -2395,9 +2667,19 @@ async function boot() {
   });
   document.getElementById("btnRefresh")?.addEventListener("click", () => doAppReload());
   document.getElementById("openProfile")?.addEventListener("click", () => showView("profile"));
-  document.getElementById("homeBulkExit")?.addEventListener("click", () => openBulkExitSheet());
-  document.getElementById("homeCargoBtn")?.addEventListener("click", () => openNoteSheet("cargo"));
-  document.getElementById("homeNoteBtn")?.addEventListener("click", () => openNoteSheet("note"));
+  document.getElementById("openPasswordView")?.addEventListener("click", () => showView("password"));
+  document.getElementById("homeBulkExit")?.addEventListener("click", () => {
+    if (isViewer()) return toast("İzleyici modunda işlem yok");
+    openBulkExitSheet();
+  });
+  document.getElementById("homeCargoBtn")?.addEventListener("click", () => {
+    if (isViewer()) return toast("İzleyici modunda işlem yok");
+    openNoteSheet("cargo");
+  });
+  document.getElementById("homeNoteBtn")?.addEventListener("click", () => {
+    if (isViewer()) return toast("İzleyici modunda işlem yok");
+    openNoteSheet("note");
+  });
   document.getElementById("chatFab")?.addEventListener("click", () => openChatPanel());
   document.getElementById("chatClose")?.addEventListener("click", () => closeChatPanel(true));
   document.getElementById("chatSettingsBtn")?.addEventListener("click", () => openChatSettings());
@@ -2409,32 +2691,56 @@ async function boot() {
   document.getElementById("notifSeeAll")?.addEventListener("click", () => loadNotifs({ all: true }));
   document.getElementById("profileForm")?.addEventListener("submit", saveProfile);
   document.getElementById("passwordForm")?.addEventListener("submit", savePassword);
+  document.getElementById("reminderForm")?.addEventListener("submit", saveReminder);
   document.getElementById("chatForm")?.addEventListener("submit", sendChat);
   document.getElementById("chatReplyCancel")?.addEventListener("click", () => {
     chatReplyTo = null;
     document.getElementById("chatReplyBar")?.classList.add("hidden");
+  });
+  document.getElementById("pfPhotoFile")?.addEventListener("change", () => {
+    const f = document.getElementById("pfPhotoFile").files?.[0];
+    if (!f) return;
+    if (f.size > 1_800_000) return toast("Fotoğraf çok büyük");
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById("pfPhoto").value = String(reader.result || "");
+    };
+    reader.readAsDataURL(f);
   });
   navigator.serviceWorker?.addEventListener("message", (ev) => {
     if (ev.data?.type === "OPEN_CHAT") {
       openChatPanel();
       if (ev.data.chatId) setTimeout(() => jumpToChatMessage(ev.data.chatId), 350);
     }
+    if (ev.data?.type === "ALERT_MATCH") {
+      const body = String(ev.data.body || "");
+      const willEnter = !/GİRMEYECEK|GIRMEYECEK/i.test(body);
+      showMatchBanner({
+        title: ev.data.title || "Beklenen ziyaretçi",
+        body,
+        willEnter,
+      });
+      loadNotifs().catch(() => {});
+    }
   });
-  let restored = "home";
-  try {
-    restored = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view") || "home";
-  } catch {
-    restored = "home";
-  }
   if (location.hash.startsWith("#chat-")) {
     const id = location.hash.slice(6);
-    openChatPanel();
     setTimeout(() => jumpToChatMessage(id), 400);
-  } else if (restored === "chat") {
-    openChatPanel();
-  } else if (restored && restored !== "home") {
-    showView(restored);
   }
+}
+
+function bindGlobalKeyboard() {
+  if (window.__kbNavBound || !window.visualViewport) return;
+  window.__kbNavBound = true;
+  const sync = () => {
+    const vv = window.visualViewport;
+    const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty("--kb", `${inset}px`);
+    document.documentElement.classList.toggle("kb-open", inset > 80);
+  };
+  window.visualViewport.addEventListener("resize", sync);
+  window.visualViewport.addEventListener("scroll", sync);
+  sync();
 }
 
 async function loadProfile() {
@@ -2442,11 +2748,12 @@ async function loadProfile() {
     const { user } = await api("/api/app/profile");
     window.currentUser = user;
     me = user;
-    const roleLabel =
-      user.role === "admin" ? "Yönetici" : user.role === "supervisor" ? "Süpervizör" : "Güvenlik Görevlisi";
     document.getElementById("profileName").textContent = user.full_name || "—";
-    document.getElementById("profileRole").textContent = roleLabel;
-    document.getElementById("profileDays").textContent = user.days_worked ?? 0;
+    document.getElementById("profileRole").textContent = roleLabelOf(user.role);
+    const titleEl = document.getElementById("profileTitle");
+    if (titleEl) titleEl.textContent = user.title_name || "";
+    const homeDays = document.getElementById("homeDays");
+    if (homeDays) homeDays.textContent = user.days_worked ?? 0;
     const av = document.getElementById("profileAvatar");
     if (user.photo_url) av.innerHTML = `<img src="${escHtml(user.photo_url)}" alt="" />`;
     else {
@@ -2461,6 +2768,8 @@ async function loadProfile() {
     document.getElementById("pfName").value = user.full_name || "";
     document.getElementById("pfId").value = user.id_no || "";
     document.getElementById("pfGender").value = user.gender || "";
+    document.getElementById("pfMarital").value = user.marital_status || "";
+    document.getElementById("pfBlood").value = user.blood_type || "";
     document.getElementById("pfArmed").value = user.armed || "";
     document.getElementById("pfShoe").value = user.shoe_size || "";
     document.getElementById("pfPants").value = user.pants_size || "";
@@ -2501,8 +2810,76 @@ async function savePassword(e) {
     });
     toast("Şifre güncellendi");
     e.target.reset();
+    showView("profile");
   } catch (err) {
     toast(err.message || "Şifre değiştirilemedi");
+  }
+}
+
+async function loadReminders() {
+  if (window.currentUser?.role !== "admin") {
+    toast("Sadece yönetici");
+    return showView("home");
+  }
+  try {
+    const { items } = await api("/api/app/reminders");
+    const box = document.getElementById("reminderList");
+    if (!box) return;
+    box.innerHTML = items?.length
+      ? items
+          .map(
+            (r) => `<div class="item-row rem-row">
+          <div>
+            <b>${escHtml(r.title)}</b>
+            <span>${escHtml(r.start_time || "")}${r.end_time ? `–${escHtml(r.end_time)}` : ""} · ${r.interval_min || 120} dk · ${escHtml(r.days || "everyday")}</span>
+            ${r.body ? `<small>${escHtml(r.body)}</small>` : ""}
+          </div>
+          <button type="button" class="vis-act" data-rem-del="${r.id}" style="border-color:rgba(239,68,68,.5);color:#f87171">Sil</button>
+        </div>`
+          )
+          .join("")
+      : `<div class="item-row"><span>Henüz hatırlatıcı yok</span></div>`;
+    box.querySelectorAll("[data-rem-del]").forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm("Hatırlatıcı silinsin mi?")) return;
+        try {
+          await api(`/api/app/reminders/${b.dataset.remDel}`, { method: "DELETE" });
+          toast("Silindi");
+          loadReminders();
+        } catch (err) {
+          toast(err.message || "Silinemedi");
+        }
+      };
+    });
+  } catch (err) {
+    toast(err.message || "Liste alınamadı");
+  }
+}
+
+async function saveReminder(e) {
+  e.preventDefault();
+  if (window.currentUser?.role !== "admin") return toast("Sadece yönetici");
+  const fd = new FormData(e.target);
+  try {
+    await api("/api/app/reminders", {
+      method: "POST",
+      body: {
+        title: String(fd.get("title") || "").trim(),
+        body: String(fd.get("body") || "").trim(),
+        start_time: fd.get("start_time"),
+        end_time: fd.get("end_time") || null,
+        interval_min: Number(fd.get("interval_min") || 120),
+        days: fd.get("days") || "everyday",
+      },
+    });
+    toast("Hatırlatıcı eklendi");
+    e.target.reset();
+    document.querySelector('#reminderForm [name="start_time"]').value = "20:00";
+    document.querySelector('#reminderForm [name="end_time"]').value = "06:00";
+    document.querySelector('#reminderForm [name="interval_min"]').value = "120";
+    loadReminders();
+  } catch (err) {
+    toast(err.message || "Eklenemedi");
   }
 }
 
@@ -2540,9 +2917,15 @@ async function loadChat(opts = {}) {
           const mine = String(m.user_id) === String(meId);
           const deleted = Boolean(m.deleted_at);
           const canDel = !deleted && (mine || window.currentUser?.role === "admin");
+          const av = m.photo_url
+            ? `<img class="chat-av" src="${escHtml(m.photo_url)}" alt="" />`
+            : `<span class="chat-av letter">${escHtml(String(m.user_name || "?").trim().charAt(0).toUpperCase())}</span>`;
           return `<div class="chat-bubble${mine ? " mine" : ""}${deleted ? " deleted" : ""}" data-mid="${m.id}" data-reply-to="${m.reply_to || ""}">
+        <div class="chat-head">${av}<div class="chat-head-txt">
+          ${m.title_name ? `<div class="chat-title">${escHtml(m.title_name)}</div>` : ""}
+          <div class="who">${escHtml(m.user_name || "—")}</div>
+        </div></div>
         ${!deleted && m.reply_body ? `<button type="button" class="reply-ref" data-jump="${m.reply_to || ""}">${escHtml(m.reply_user_name || "")}: ${escHtml(m.reply_body)}</button>` : ""}
-        <div class="who">${escHtml(m.user_name || "—")}</div>
         <div class="chat-body">${deleted ? "Bu mesaj silindi" : escHtml(m.body)}</div>
         <div class="chat-meta">${fmtDateTime(m.created_at)}</div>
         ${

@@ -63,24 +63,26 @@ router.get("/overview", async (_req, res) => {
 
 router.get("/users", async (_req, res) => {
   const { rows } = await query(
-    `SELECT id, username, full_name, role, phone, active, chat_manager, created_at
-     FROM users ORDER BY created_at DESC`
+    `SELECT u.id, u.username, u.full_name, u.role, u.phone, u.active, u.chat_manager, u.title_id, t.name AS title_name, u.created_at
+     FROM users u LEFT JOIN job_titles t ON t.id = u.title_id
+     ORDER BY u.created_at DESC`
   );
   res.json({ items: rows });
 });
 
 router.post("/users", async (req, res) => {
-  const { username, password, full_name, role, phone } = req.body || {};
+  const { username, password, full_name, role, phone, title_id } = req.body || {};
   if (!username || !password || !full_name) {
     return res.status(400).json({ error: "Kullanıcı adı, şifre ve ad soyad gerekli" });
   }
+  const safeRole = ["admin", "guard", "viewer", "supervisor"].includes(role) ? role : "guard";
   const hash = await bcrypt.hash(String(password), 10);
   try {
     const { rows } = await query(
-      `INSERT INTO users (username, password_hash, full_name, role, phone)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id, username, full_name, role, phone, active, created_at`,
-      [username.trim(), hash, full_name, role || "guard", phone || null]
+      `INSERT INTO users (username, password_hash, full_name, role, phone, title_id)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING id, username, full_name, role, phone, active, title_id, created_at`,
+      [username.trim(), hash, full_name, safeRole, phone || null, title_id || null]
     );
     await writeLog(req, "Kullanıcı eklendi", username);
     res.json({ item: rows[0] });
@@ -93,7 +95,10 @@ router.post("/users", async (req, res) => {
 });
 
 router.patch("/users/:id", async (req, res) => {
-  const { full_name, role, phone, active, password, chat_manager } = req.body || {};
+  const { full_name, role, phone, active, password, chat_manager, title_id } = req.body || {};
+  if (role != null && !["admin", "guard", "viewer", "supervisor"].includes(role)) {
+    return res.status(400).json({ error: "Geçersiz rol" });
+  }
   const sets = [];
   const vals = [];
   let i = 1;
@@ -117,6 +122,10 @@ router.patch("/users/:id", async (req, res) => {
     sets.push(`chat_manager=$${i++}`);
     vals.push(Boolean(chat_manager));
   }
+  if (title_id !== undefined) {
+    sets.push(`title_id=$${i++}`);
+    vals.push(title_id || null);
+  }
   if (password) {
     sets.push(`password_hash=$${i++}`);
     vals.push(await bcrypt.hash(String(password), 10));
@@ -125,11 +134,34 @@ router.patch("/users/:id", async (req, res) => {
   vals.push(req.params.id);
   const { rows } = await query(
     `UPDATE users SET ${sets.join(", ")} WHERE id=$${i}
-     RETURNING id, username, full_name, role, phone, active, chat_manager, created_at`,
+     RETURNING id, username, full_name, role, phone, active, chat_manager, title_id, created_at`,
     vals
   );
   await writeLog(req, "Kullanıcı güncellendi", rows[0]?.username);
   res.json({ item: rows[0] });
+});
+
+router.get("/titles", async (_req, res) => {
+  const { rows } = await query(`SELECT * FROM job_titles ORDER BY sort_order, name`);
+  res.json({ items: rows });
+});
+
+router.post("/titles", async (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Unvan gerekli" });
+  const { rows } = await query(
+    `INSERT INTO job_titles (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING *`,
+    [name]
+  );
+  await writeLog(req, "Unvan eklendi", name);
+  res.json({ item: rows[0] });
+});
+
+router.delete("/titles/:id", async (req, res) => {
+  await query(`UPDATE users SET title_id = NULL WHERE title_id=$1`, [req.params.id]);
+  await query(`DELETE FROM job_titles WHERE id=$1`, [req.params.id]);
+  await writeLog(req, "Unvan silindi", req.params.id);
+  res.json({ ok: true });
 });
 
 router.delete("/users/:id", async (req, res) => {
@@ -381,7 +413,7 @@ router.patch("/settings", async (req, res) => {
   }
   if (req.body?.default_visitor_type != null) {
     const type = String(req.body.default_visitor_type || "");
-    if (!["sevkiyat", "gorusme", "calisma"].includes(type)) {
+    if (!["sevkiyat", "gorusme", "calisma", "kargo", "yemek"].includes(type)) {
       return res.status(400).json({ error: "Geçersiz varsayılan ekran" });
     }
     await query(

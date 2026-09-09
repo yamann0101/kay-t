@@ -8,9 +8,9 @@
   <link rel="icon" href="/icons/icon-192.png" />
   <title>S-360 · Yönetici</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=16" />
-  <link rel="stylesheet" href="/css/admin.css?v=16" />
-  <link rel="stylesheet" href="/css/login.css?v=16" />
+  <link rel="stylesheet" href="/css/tokens.css?v=21" />
+  <link rel="stylesheet" href="/css/admin.css?v=21" />
+  <link rel="stylesheet" href="/css/login.css?v=21" />
 </head>
 <body class="admin-body">
   <div class="aside-bg hidden" id="asideBg"></div>
@@ -83,7 +83,7 @@
         <div class="grid-2">
           <div class="panel">
             <div class="panel-h"><h3>Kayıtlı kullanıcılar</h3></div>
-            <div class="table-wrap"><table><thead><tr><th>Ad</th><th>Kullanıcı</th><th>Rol</th><th>Sohbet Yön.</th><th></th></tr></thead><tbody id="userRows"></tbody></table></div>
+            <div class="table-wrap"><table><thead><tr><th>Ad</th><th>Kullanıcı</th><th>Rol</th><th>Unvan</th><th>Sohbet</th><th></th></tr></thead><tbody id="userRows"></tbody></table></div>
           </div>
           <div class="panel">
             <div class="panel-h"><h3>Yeni kullanıcı</h3></div>
@@ -93,9 +93,12 @@
               <input name="password" placeholder="Şifre" required />
               <input name="phone" placeholder="Telefon" />
               <select name="role">
-                <option value="guard">Görevli</option>
-                <option value="supervisor">Süpervizör</option>
-                <option value="admin">Yönetici</option>
+                <option value="guard">Güvenlik</option>
+                <option value="viewer">İzleyici</option>
+                <option value="admin">Admin</option>
+              </select>
+              <select name="title_id" id="userTitleSelect">
+                <option value="">Unvan (opsiyonel)</option>
               </select>
               <button class="btn gold" type="submit">Ekle</button>
             </form>
@@ -212,6 +215,14 @@
                 <b>Çalışma</b>
                 <span>Proje, bakım, onarım</span>
               </button>
+              <button type="button" class="pick" data-type="kargo">
+                <b>Kargo</b>
+                <span>Teslim al / teslim et</span>
+              </button>
+              <button type="button" class="pick" data-type="yemek">
+                <b>Yemek</b>
+                <span>Yemek siparişi firması</span>
+              </button>
             </div>
           </div>
         </div>
@@ -247,8 +258,19 @@
             <label>Sevkiyat<textarea id="copySevkiyat" rows="3"></textarea></label>
             <label>Görüşme<textarea id="copyGorusme" rows="3"></textarea></label>
             <label>Çalışma<textarea id="copyCalisma" rows="3"></textarea></label>
+            <label>Kargo — Teslim Alacak<textarea id="copyKargoAl" rows="3"></textarea></label>
+            <label>Kargo — Teslim Edecek<textarea id="copyKargoVer" rows="3"></textarea></label>
+            <label>Yemek Siparişi<textarea id="copyYemek" rows="3"></textarea></label>
             <button class="btn gold" type="button" id="saveCopyBtn">Şablonları kaydet</button>
           </div>
+        </div>
+        <div class="panel" style="max-width:920px;margin-top:16px">
+          <div class="panel-h"><h3>Unvanlar</h3></div>
+          <form class="form-grid" id="titleForm" style="padding:0 12px 12px">
+            <input name="name" placeholder="Yeni unvan (ör. Güvenlik Amiri)" required />
+            <button class="btn gold" type="submit">Unvan Ekle</button>
+          </form>
+          <div id="titleRows" class="form-grid" style="padding:0 12px 12px"></div>
         </div>
         <div class="panel" style="max-width:920px;margin-top:16px">
           <div class="panel-h"><h3>Sohbet ayarları</h3></div>
@@ -296,8 +318,8 @@
     </main>
   </div>
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=19"></script>
-  <script src="/js/api.js?v=19"></script>
-  <script src="/js/admin.js?v=17"></script>
+  <script src="/js/haptic.js?v=21"></script>
+  <script src="/js/api.js?v=21"></script>
+  <script src="/js/admin.js?v=21"></script>
 </body>
 </html>

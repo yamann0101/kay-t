@@ -57,7 +57,16 @@ router.post("/logout", authRequired, async (req, res) => {
 });
 
 router.get("/me", authRequired, (req, res) => {
-  res.json({ user: req.user });
+  const u = req.user;
+  let days = 0;
+  if (u.start_date) {
+    const start = new Date(u.start_date);
+    if (!Number.isNaN(start.getTime())) {
+      const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Istanbul" }));
+      days = Math.max(0, Math.floor((now - start) / (24 * 60 * 60 * 1000)) + 1);
+    }
+  }
+  res.json({ user: { ...u, days_worked: days } });
 });
 
 router.get("/vapid", (_req, res) => {

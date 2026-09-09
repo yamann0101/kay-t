@@ -53,19 +53,13 @@ export async function matchVisitorAlerts(visit) {
   const { rows } = await query(`SELECT * FROM visitor_alerts WHERE active = TRUE AND matched_at IS NULL`);
   const company = foldSearch(visit.company);
   const hits = [];
-  const dismiss = [];
   for (const a of rows) {
     const nameHit = alertPersonMatch(visit, a);
-    const companyHit = Boolean(a.company_key && company && namesMatch(company, a.company_key));
-    // Sadece firma eşleşir, ad/soyad uymaz → bildirim kalkar
-    if (companyHit && !nameHit) {
-      dismiss.push(a);
-      continue;
-    }
-    if (nameHit) hits.push(a);
-  }
-  for (const a of dismiss) {
-    await query(`UPDATE visitor_alerts SET active = FALSE WHERE id = $1`, [a.id]);
+    const companyHit = Boolean(
+      a.company_key && company && (company === foldSearch(a.company_key) || namesMatch(company, a.company_key))
+    );
+    // İsim veya soyisim veya şirket eşleşirse bildirim
+    if (nameHit || companyHit) hits.push(a);
   }
   return hits;
 }
@@ -157,7 +151,80 @@ export function startNotifier() {
   const tick = () => {
     processDueKeyNotifs().catch(() => {});
     processShiftReminders().catch(() => {});
+    processCustomReminders().catch(() => {});
   };
   tick();
   return setInterval(tick, 20_000);
+}
+
+function minutesOf(hhmm) {
+  const m = String(hhmm || "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+function inWindow(nowMin, start, end) {
+  if (start == null) return false;
+  if (end == null) return nowMin === start;
+  // geceyi aşan aralık: 20:00 → 06:00
+  if (end < start) return nowMin >= start || nowMin <= end;
+  return nowMin >= start && nowMin <= end;
+}
+
+function dayAllowed(days, weekday) {
+  const d = String(days || "everyday").toLowerCase();
+  if (!d || d === "everyday" || d === "hergun" || d === "hergün") return true;
+  const map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const tr = ["paz", "pzt", "sal", "car", "per", "cum", "cmt"];
+  const token = map[weekday];
+  const tokenTr = tr[weekday];
+  return d.split(/[,\s]+/).some((x) => x === token || x === tokenTr || x === String(weekday));
+}
+
+export async function processCustomReminders() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Istanbul",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t) => parts.find((p) => p.type === t)?.value || "";
+  const hh = get("hour").padStart(2, "0");
+  const mm = get("minute").padStart(2, "0");
+  const nowMin = Number(hh) * 60 + Number(mm);
+  const wdMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const weekday = wdMap[get("weekday")] ?? now.getDay();
+  const dayKey = todayKey();
+  const { rows } = await query(`SELECT * FROM custom_reminders WHERE active = TRUE`);
+  for (const r of rows) {
+    if (!dayAllowed(r.days, weekday)) continue;
+    const start = minutesOf(r.start_time);
+    const end = minutesOf(r.end_time);
+    if (!inWindow(nowMin, start, end)) continue;
+    const interval = Math.max(15, Number(r.interval_min) || 120);
+    // slot: start'tan itibaren interval dakikada bir
+    let hit = false;
+    if (end == null) {
+      hit = nowMin === start;
+    } else if (end < start) {
+      // gece aşımı
+      const elapsed = nowMin >= start ? nowMin - start : nowMin + (24 * 60 - start);
+      hit = elapsed % interval === 0;
+    } else {
+      const elapsed = nowMin - start;
+      hit = elapsed >= 0 && elapsed % interval === 0;
+    }
+    if (!hit) continue;
+    const slotKey = `${dayKey}-${hh}${mm}`;
+    if (r.last_sent_key === slotKey) continue;
+    await sendPushAll({
+      title: r.title,
+      body: r.body || r.title,
+      type: "reminder",
+      tag: `rem-${r.id}-${slotKey}`,
+    });
+    await query(`UPDATE custom_reminders SET last_sent_key=$2 WHERE id=$1`, [r.id, slotKey]);
+  }
 }

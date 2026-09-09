@@ -105,10 +105,16 @@ export async function insertVisitor(userId, body, fields, opts = {}) {
   const name = toUpperTr(body?.full_name || `${first} ${last}`.trim()).trim();
   if (!name) throw new Error("İsim ve soyisim zorunlu");
 
-  const type = ["sevkiyat", "gorusme", "calisma"].includes(cols.visit_type || body?.visit_type)
+  const type = ["sevkiyat", "gorusme", "calisma", "kargo", "yemek"].includes(cols.visit_type || body?.visit_type)
     ? cols.visit_type || body.visit_type
     : "sevkiyat";
-  const labels = { sevkiyat: "Sevkiyat", gorusme: "Görüşme", calisma: "Çalışma" };
+  const labels = {
+    sevkiyat: "Sevkiyat",
+    gorusme: "Görüşme",
+    calisma: "Çalışma",
+    kargo: "Kargo",
+    yemek: "Yemek Siparişi",
+  };
   const cat = body?.category || labels[type];
   const recordNo = String(cols.record_no || body?.record_no || "").trim() || (await nextRecordNo());
   const plateVal = String(cols.plate || body?.plate || "").trim();

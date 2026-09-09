@@ -34,7 +34,10 @@ document.querySelectorAll(".aside nav button").forEach((b) => {
     }
     if (b.dataset.view === "logs") loadLogs();
     if (b.dataset.view === "announce") loadAnn();
-    if (b.dataset.view === "settings") loadSettings();
+    if (b.dataset.view === "settings") {
+      loadSettings();
+      loadTitles();
+    }
     if (b.dataset.view === "visitors") loadVisitors();
   };
 });
@@ -114,14 +117,36 @@ async function loadDash() {
 }
 
 async function loadUsers() {
-  const { items } = await api("/api/admin/users");
+  const [{ items }, titlesRes] = await Promise.all([
+    api("/api/admin/users"),
+    api("/api/admin/titles").catch(() => ({ items: [] })),
+  ]);
+  const titleOpts = (titlesRes.items || [])
+    .map((t) => `<option value="${t.id}">${esc(t.name)}</option>`)
+    .join("");
+  const titleSel = document.getElementById("userTitleSelect");
+  if (titleSel) {
+    titleSel.innerHTML = `<option value="">Unvan (opsiyonel)</option>` + titleOpts;
+  }
+  const roleTr = { admin: "Admin", guard: "Güvenlik", viewer: "İzleyici", supervisor: "Süpervizör" };
   document.getElementById("userRows").innerHTML = items
     .map(
       (u) => `
       <tr>
-        <td>${u.full_name}</td>
-        <td>${u.username}</td>
-        <td><span class="badge ${u.role}">${u.role}</span></td>
+        <td>${esc(u.full_name)}</td>
+        <td>${esc(u.username)}</td>
+        <td><span class="badge ${u.role}">${roleTr[u.role] || u.role}</span></td>
+        <td>
+          <select data-title-user="${u.id}" style="max-width:140px">
+            <option value="">—</option>
+            ${(titlesRes.items || [])
+              .map(
+                (t) =>
+                  `<option value="${t.id}" ${String(u.title_id) === String(t.id) ? "selected" : ""}>${esc(t.name)}</option>`
+              )
+              .join("")}
+          </select>
+        </td>
         <td><input type="checkbox" data-chat-mgr="${u.id}" ${u.chat_manager || u.role === "admin" || u.role === "supervisor" ? "checked" : ""} ${u.role === "admin" || u.role === "supervisor" ? "disabled" : ""} title="Sohbet yöneticisi"/></td>
         <td><button class="btn danger small" data-del-user="${u.id}">Sil</button></td>
       </tr>`
@@ -154,11 +179,65 @@ async function loadUsers() {
       }
     };
   });
+  document.querySelectorAll("[data-title-user]").forEach((sel) => {
+    sel.onchange = async () => {
+      try {
+        await api(`/api/admin/users/${sel.dataset.titleUser}`, {
+          method: "PATCH",
+          body: { title_id: sel.value || null },
+        });
+        toast("Unvan güncellendi");
+      } catch (err) {
+        toast(err.message);
+        loadUsers();
+      }
+    };
+  });
 }
+
+async function loadTitles() {
+  const box = document.getElementById("titleRows");
+  if (!box) return;
+  const { items } = await api("/api/admin/titles");
+  box.innerHTML = items?.length
+    ? items
+        .map(
+          (t) => `<div class="section-item">
+        <b>${esc(t.name)}</b>
+        <button class="btn danger small" type="button" data-del-title="${t.id}">Sil</button>
+      </div>`
+        )
+        .join("")
+    : `<p class="muted">Henüz unvan yok</p>`;
+  box.querySelectorAll("[data-del-title]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Unvan silinsin mi?")) return;
+      await api(`/api/admin/titles/${b.dataset.delTitle}`, { method: "DELETE" });
+      toast("Silindi");
+      loadTitles();
+      loadUsers();
+    };
+  });
+}
+
+document.getElementById("titleForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    await api("/api/admin/titles", { method: "POST", body: { name: fd.get("name") } });
+    e.target.reset();
+    toast("Unvan eklendi");
+    loadTitles();
+    loadUsers();
+  } catch (err) {
+    toast(err.message);
+  }
+});
 
 document.getElementById("userForm").onsubmit = async (e) => {
   e.preventDefault();
   const body = Object.fromEntries(new FormData(e.target).entries());
+  if (!body.title_id) delete body.title_id;
   try {
     await api("/api/admin/users", { method: "POST", body });
     e.target.reset();
@@ -401,7 +480,13 @@ document.querySelectorAll("[data-purge]").forEach((b) => {
   };
 });
 
-const TYPE_LABELS = { sevkiyat: "Sevkiyat", gorusme: "Görüşme", calisma: "Çalışma" };
+const TYPE_LABELS = {
+  sevkiyat: "Sevkiyat",
+  gorusme: "Görüşme",
+  calisma: "Çalışma",
+  kargo: "Kargo",
+  yemek: "Yemek Siparişi",
+};
 
 function renderFields() {
   document.getElementById("fieldRows").innerHTML = visitorFields
@@ -493,6 +578,9 @@ async function loadSettings() {
   document.getElementById("copySevkiyat").value = copy.sevkiyat || "";
   document.getElementById("copyGorusme").value = copy.gorusme || "";
   document.getElementById("copyCalisma").value = copy.calisma || "";
+  document.getElementById("copyKargoAl").value = copy.kargo_al || "";
+  document.getElementById("copyKargoVer").value = copy.kargo_ver || "";
+  document.getElementById("copyYemek").value = copy.yemek || "";
   const chatOnly = document.getElementById("adminChatManagersOnly");
   if (chatOnly) chatOnly.checked = Boolean(s.chat_managers_only);
 }
@@ -561,6 +649,9 @@ document.getElementById("saveCopyBtn").onclick = async () => {
         sevkiyat: document.getElementById("copySevkiyat").value,
         gorusme: document.getElementById("copyGorusme").value,
         calisma: document.getElementById("copyCalisma").value,
+        kargo_al: document.getElementById("copyKargoAl").value,
+        kargo_ver: document.getElementById("copyKargoVer").value,
+        yemek: document.getElementById("copyYemek").value,
       },
     },
   });

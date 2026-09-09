@@ -26,11 +26,35 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// Pull-to-refresh: daha uzun çekince yenile (hassas olmasın)
+function ptrEl() {
+  return document.getElementById("ptrBar");
+}
+
+function setPtrProgress(p, refreshing = false) {
+  const el = ptrEl();
+  if (!el) return;
+  const clamped = Math.max(0, Math.min(1, p));
+  el.classList.toggle("visible", clamped > 0.05 || refreshing);
+  el.classList.toggle("ready", clamped >= 1 && !refreshing);
+  el.classList.toggle("refreshing", refreshing);
+  el.style.setProperty("--ptr", String(clamped));
+  el.setAttribute("aria-hidden", clamped < 0.05 && !refreshing ? "true" : "false");
+}
+
+window.showPtrRefreshing = function showPtrRefreshing() {
+  setPtrProgress(1, true);
+};
+
+window.hidePtr = function hidePtr() {
+  setPtrProgress(0, false);
+};
+
+// Pull-to-refresh: Google tarzı dönen çubuk, ekranın ortasına çekince
 (function bindPullRefresh() {
   let startY = 0;
   let pulling = false;
-  const threshold = 140;
+  let armed = false;
+  const threshold = () => Math.max(160, Math.round(window.innerHeight * 0.32));
   const getScroll = () =>
     document.querySelector(".app-scroll") || document.scrollingElement || document.documentElement;
 
@@ -48,15 +72,26 @@ if ("serviceWorker" in navigator) {
     return false;
   };
 
+  const triggerReload = () => {
+    if (regDirty() && !confirm("Kayıt formu dolu. Yenilerseniz yazdıklarınız silinir. Devam edilsin mi?")) {
+      setPtrProgress(0, false);
+      return;
+    }
+    setPtrProgress(1, true);
+    setTimeout(() => location.reload(), 280);
+  };
+
   document.addEventListener(
     "touchstart",
     (e) => {
       if (!atTop()) {
         pulling = false;
+        armed = false;
         return;
       }
       startY = e.touches[0].clientY;
       pulling = true;
+      armed = false;
     },
     { passive: true }
   );
@@ -66,25 +101,34 @@ if ("serviceWorker" in navigator) {
     (e) => {
       if (!pulling) return;
       const dy = e.touches[0].clientY - startY;
-      if (dy > 40) document.documentElement.classList.add("pulling");
+      if (dy < 12) {
+        setPtrProgress(0, false);
+        return;
+      }
+      const t = threshold();
+      const p = Math.min(1.15, dy / t);
+      armed = p >= 1;
+      setPtrProgress(p, false);
+      document.documentElement.classList.toggle("pulling", dy > 24);
     },
     { passive: true }
   );
 
   document.addEventListener(
     "touchend",
-    (e) => {
+    () => {
       document.documentElement.classList.remove("pulling");
       if (!pulling) return;
       pulling = false;
-      const dy = e.changedTouches[0].clientY - startY;
-      if (dy > threshold && atTop()) {
-        if (regDirty() && !confirm("Kayıt formu dolu. Yenilerseniz yazdıklarınız silinir. Devam edilsin mi?")) {
-          return;
-        }
-        location.reload();
+      if (armed && atTop()) {
+        triggerReload();
+      } else {
+        setPtrProgress(0, false);
       }
+      armed = false;
     },
     { passive: true }
   );
+
+  window.triggerAppReload = triggerReload;
 })();
