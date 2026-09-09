@@ -8,6 +8,7 @@ if ("serviceWorker" in navigator) {
         const sw = reg.installing;
         if (!sw) return;
         sw.addEventListener("statechange", () => {
+          // Yeni SW'yi arka planda al; sayfayı yenileme / çıkış yaptırma
           if (sw.state === "installed" && navigator.serviceWorker.controller) {
             sw.postMessage({ type: "SKIP_WAITING" });
           }
@@ -18,11 +19,13 @@ if ("serviceWorker" in navigator) {
     }
   });
 
-  let refreshing = false;
+  // controllerchange'de location.reload() YAPMA — oturum düşüyor gibi görünüyordu
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshing) return;
-    refreshing = true;
-    location.reload();
+    try {
+      if (typeof softRefreshApp === "function") softRefreshApp().catch(() => {});
+    } catch {
+      /* ignore */
+    }
   });
 }
 

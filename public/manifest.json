@@ -1,7 +1,7 @@
 {
   "name": "S-360",
   "short_name": "S-360",
-  "description": "Daha güvenli yarınlar",
+  "description": "Güvenli daha yarınlar",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

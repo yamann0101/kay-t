@@ -15,8 +15,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=5" />
-  <link rel="stylesheet" href="/css/login.css?v=5" />
+  <link rel="stylesheet" href="/css/tokens.css?v=52" />
+  <link rel="stylesheet" href="/css/login.css?v=52" />
 </head>
 <body class="login-page framed">
   <div class="phone-shell">
@@ -38,24 +38,12 @@
     </div>
 
     <div class="brand">
-      <div class="shield-wrap">
-        <svg viewBox="0 0 128 128">
-          <defs>
-            <linearGradient id="goldg" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#fff3c4"/>
-              <stop offset="45%" stop-color="#e0b84a"/>
-              <stop offset="100%" stop-color="#8a6a12"/>
-            </linearGradient>
-          </defs>
-          <circle cx="64" cy="64" r="56" fill="url(#goldg)"/>
-          <circle cx="64" cy="64" r="50" fill="none" stroke="#1a1408" stroke-width="2" opacity="0.25"/>
-          <path d="M64 26c-16 4-28 6-28 6v32c0 22 13 34 28 42 15-8 28-20 28-42V32s-12-2-28-6z" fill="#0c0c0c"/>
-          <polygon points="64,46 69,59 83,60 72,69 76,83 64,75 52,83 56,69 45,60 59,59" fill="url(#goldg)"/>
-        </svg>
+      <div class="shield-wrap brand-logo">
+        <img src="/icons/icon-192.png" alt="S-360" width="112" height="112" />
       </div>
       <h1 class="gold-text">S-360</h1>
       <div class="sub">ÖZEL GÜVENLİK YÖNETİM SİSTEMİ</div>
-      <div class="slogan-row"><i></i><span>DAHA GÜVENLİ YARINLAR</span><i></i></div>
+      <div class="slogan-row"><i></i><span>GÜVENLİ DAHA YARINLAR</span><i></i></div>
     </div>
 
     <form class="login-card" id="loginForm">
@@ -112,8 +100,9 @@
   </div>
   <div class="toast" id="toast"></div>
   <script src="/js/haptic.js?v=19"></script>
-  <script src="/js/api.js?v=11"></script>
-  <script src="/js/login.js?v=11"></script>
-  <script src="/js/pwa.js?v=11"></script>
+  <script src="/js/api.js?v=52"></script>
+  <script src="/js/webauthn-client.js?v=52"></script>
+  <script src="/js/login.js?v=52"></script>
+  <script src="/js/pwa.js?v=52"></script>
 </body>
 </html>

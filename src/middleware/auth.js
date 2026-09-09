@@ -6,7 +6,7 @@ export function signToken(user) {
   return jwt.sign(
     { id: user.id, role: user.role, username: user.username },
     config.jwtSecret,
-    { expiresIn: "12h" }
+    { expiresIn: "30d" }
   );
 }
 
@@ -15,7 +15,7 @@ export function setAuthCookie(res, token) {
     httpOnly: true,
     sameSite: "lax",
     secure: config.isProd,
-    maxAge: 12 * 60 * 60 * 1000,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
     path: "/",
   });
 }

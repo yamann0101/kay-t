@@ -6,7 +6,7 @@ import { backfillVisitorPeople } from "../lib/visitors.js";
 import { DEFAULT_COPY, DEFAULT_SHIFT } from "../lib/appSettings.js";
 
 /** Şema sürümü: her yapısal değişiklikte artır. Seed tekrarlanmaz. */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -460,6 +460,9 @@ export async function migrate() {
     ALTER TABLE site_notes ADD COLUMN IF NOT EXISTS photo_url TEXT;
     ALTER TABLE visitor_alerts ADD COLUMN IF NOT EXISTS first_name TEXT;
     ALTER TABLE visitor_alerts ADD COLUMN IF NOT EXISTS last_name TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS webauthn_cred_id TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS webauthn_public_key TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS webauthn_counter INT NOT NULL DEFAULT 0;
     ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
     ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin','supervisor','guard','viewer'));
     CREATE TABLE IF NOT EXISTS job_titles (

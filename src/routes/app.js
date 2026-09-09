@@ -910,11 +910,20 @@ router.delete("/alerts/:id", async (req, res) => {
 });
 
 router.get("/profile", async (req, res) => {
-  const u = req.user;
+  const { rows } = await query(
+    `SELECT u.*, t.name AS title_name
+     FROM users u
+     LEFT JOIN job_titles t ON t.id = u.title_id
+     WHERE u.id = $1`,
+    [req.user.id]
+  );
+  const u = rows[0] || req.user;
+  const { password_hash, webauthn_public_key, ...safe } = u;
   res.json({
     user: {
-      ...u,
+      ...safe,
       days_worked: daysWorked(u.start_date),
+      has_webauthn: Boolean(u.webauthn_cred_id),
     },
   });
 });

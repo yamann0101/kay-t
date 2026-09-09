@@ -269,6 +269,7 @@ document.getElementById("logoutBtn").onclick = async () => {
   } catch {
     /* ignore */
   }
+  cacheSession(null);
   location.href = "/";
 };
 
@@ -1945,7 +1946,32 @@ async function loadSettings() {
     visitorFields = Array.isArray(s.visitor_fields) ? s.visitor_fields : [];
     if (s.copy_templates) copyTemplates = { ...copyTemplates, ...s.copy_templates };
     if (s.shift_reminders) shiftReminders = { ...shiftReminders, ...s.shift_reminders };
+    try {
+      localStorage.setItem(
+        "s360_settings",
+        JSON.stringify({
+          defaultVisitType,
+          visitorFields,
+          copyTemplates,
+          shiftReminders,
+        })
+      );
+    } catch {
+      /* ignore */
+    }
   } catch {
+    try {
+      const cached = JSON.parse(localStorage.getItem("s360_settings") || "null");
+      if (cached) {
+        defaultVisitType = cached.defaultVisitType || "sevkiyat";
+        visitorFields = Array.isArray(cached.visitorFields) ? cached.visitorFields : [];
+        if (cached.copyTemplates) copyTemplates = { ...copyTemplates, ...cached.copyTemplates };
+        if (cached.shiftReminders) shiftReminders = { ...shiftReminders, ...cached.shiftReminders };
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
     defaultVisitType = "sevkiyat";
   }
 }
@@ -2441,6 +2467,7 @@ function clearVisitorForm(form) {
 }
 
 const OUTBOX_KEY = "s360_outbox_visitors";
+const ALERT_OUTBOX_KEY = "s360_outbox_alerts";
 
 function readOutbox() {
   try {
@@ -2454,6 +2481,22 @@ function writeOutbox(list) {
   localStorage.setItem(OUTBOX_KEY, JSON.stringify(list || []));
 }
 
+function readAlertOutbox() {
+  try {
+    return JSON.parse(localStorage.getItem(ALERT_OUTBOX_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function writeAlertOutbox(list) {
+  localStorage.setItem(ALERT_OUTBOX_KEY, JSON.stringify(list || []));
+}
+
+function isNetworkError(err) {
+  return Boolean(err?.network || err?.status === 0 || /failed to fetch|network|internet|load failed|offline|ağ/i.test(String(err?.message || "")));
+}
+
 async function saveVisitorOnlineOrQueue(body) {
   if (!navigator.onLine) {
     const q = readOutbox();
@@ -2465,8 +2508,7 @@ async function saveVisitorOnlineOrQueue(body) {
   try {
     return await api("/api/app/visitors", { method: "POST", body });
   } catch (err) {
-    const msg = String(err.message || "");
-    if (/failed to fetch|network|internet|load failed|offline/i.test(msg) || !navigator.onLine) {
+    if (isNetworkError(err) || !navigator.onLine) {
       const q = readOutbox();
       q.push({ id: `local-${Date.now()}`, body, at: new Date().toISOString() });
       writeOutbox(q);
@@ -2477,10 +2519,33 @@ async function saveVisitorOnlineOrQueue(body) {
   }
 }
 
+async function saveAlertOnlineOrQueue(body) {
+  if (!navigator.onLine) {
+    const q = readAlertOutbox();
+    q.push({ id: `alert-${Date.now()}`, body, at: new Date().toISOString() });
+    writeAlertOutbox(q);
+    updateOfflineBanner();
+    return { queued: true };
+  }
+  try {
+    return await api("/api/app/alerts", { method: "POST", body });
+  } catch (err) {
+    if (isNetworkError(err) || !navigator.onLine) {
+      const q = readAlertOutbox();
+      q.push({ id: `alert-${Date.now()}`, body, at: new Date().toISOString() });
+      writeAlertOutbox(q);
+      updateOfflineBanner();
+      return { queued: true };
+    }
+    throw err;
+  }
+}
+
 async function flushOutbox() {
   if (!navigator.onLine) return;
   const q = readOutbox();
-  if (!q.length) {
+  const aq = readAlertOutbox();
+  if (!q.length && !aq.length) {
     updateOfflineBanner();
     return;
   }
@@ -2490,33 +2555,45 @@ async function flushOutbox() {
     try {
       await api("/api/app/visitors", { method: "POST", body: item.body });
       ok += 1;
-    } catch {
-      left.push(item);
+    } catch (err) {
+      if (isNetworkError(err)) left.push(item);
+      else left.push(item);
     }
   }
   writeOutbox(left);
+  const alertLeft = [];
+  for (const item of aq) {
+    try {
+      await api("/api/app/alerts", { method: "POST", body: item.body });
+      ok += 1;
+    } catch {
+      alertLeft.push(item);
+    }
+  }
+  writeAlertOutbox(alertLeft);
   updateOfflineBanner();
   if (ok) {
-    toast(`${ok} çevrimdışı kayıt gönderildi`);
+    toast(`${ok} çevrimdışı işlem gönderildi`);
     loadHome().catch(() => {});
+    loadAlerts?.().catch?.(() => {});
   }
 }
 
 function updateOfflineBanner() {
   const el = document.getElementById("offlineBanner");
   if (!el) return;
-  const q = readOutbox().length;
+  const q = readOutbox().length + readAlertOutbox().length;
   if (!navigator.onLine) {
     el.classList.add("show");
     el.classList.remove("sync");
     el.textContent = q
-      ? `Çevrimdışı · ${q} kayıt bekliyor`
-      : "Çevrimdışı · kayıtlar cihazda tutulur";
+      ? `Çevrimdışı · ${q} işlem bekliyor (internet gelince gönderilir)`
+      : "Çevrimdışı mod · kayıt ve haber ver cihazda tutulur";
     return;
   }
   if (q) {
     el.classList.add("show", "sync");
-    el.textContent = `${q} kayıt senkronize ediliyor…`;
+    el.textContent = `${q} işlem senkronize ediliyor…`;
     return;
   }
   el.classList.remove("show", "sync");
@@ -2597,13 +2674,14 @@ document.getElementById("alertForm").addEventListener("submit", async (e) => {
   };
   if (!body.first_name || !body.last_name) return toast("Ad ve soyad gerekli");
   try {
-    await enablePush(true);
-    await api("/api/app/alerts", { method: "POST", body });
-    toast("Haber verildi · bildirim gönderildi");
+    if (navigator.onLine) await enablePush(true).catch(() => {});
+    const data = await saveAlertOnlineOrQueue(body);
+    if (data?.queued) toast("Çevrimdışı kaydedildi · internet gelince gönderilir");
+    else toast("Haber verildi · bildirim gönderildi");
     e.target.reset();
     const yes = e.target.querySelector('input[name="will_enter"][value="1"]');
     if (yes) yes.checked = true;
-    loadAlerts();
+    if (!data?.queued) loadAlerts().catch(() => {});
   } catch (err) {
     toast(err.message || "Kayıt başarısız");
   }
@@ -2704,14 +2782,26 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function boot() {
+  let offlineSession = false;
   try {
     const data = await api("/api/auth/me");
     me = data.user;
-    window.currentUser = me;
-  } catch {
-    location.href = "/";
-    return;
+    cacheSession(me);
+  } catch (err) {
+    const cached = readCachedSession();
+    if (cached && (isNetworkError(err) || !navigator.onLine || err?.status === 0)) {
+      me = cached;
+      offlineSession = true;
+    } else if (err?.status === 401 || !cached) {
+      cacheSession(null);
+      location.href = "/";
+      return;
+    } else {
+      me = cached;
+      offlineSession = true;
+    }
   }
+  window.currentUser = me;
   const roleLabel = roleLabelOf(me.role);
   document.getElementById("helloName").textContent = me.full_name;
   document.getElementById("drawerName").textContent = me.full_name;
@@ -2755,24 +2845,35 @@ async function boot() {
   } else if (isViewer()) {
     showView("home");
   }
-  await loadSettings();
-  await loadHome();
+  await loadSettings().catch(() => {});
+  await loadHome().catch(() => {});
   if (daysEl && window.currentUser?.days_worked != null) {
     daysEl.textContent = window.currentUser.days_worked;
   }
-  await loadNotifs();
-  enablePush();
+  await loadNotifs().catch(() => {});
+  if (!offlineSession) enablePush();
   bindUppercase(document);
   bindGlobalKeyboard();
   checkShiftTicker();
   updateOfflineBanner();
+  if (offlineSession) toast("Çevrimdışı · kayıt ve haber ver cihazda tutulur");
   flushOutbox().catch(() => {});
   window.addEventListener("online", () => {
     updateOfflineBanner();
     flushOutbox().catch(() => {});
+    api("/api/auth/me")
+      .then((d) => {
+        if (d?.user) {
+          me = d.user;
+          window.currentUser = me;
+          cacheSession(me);
+        }
+      })
+      .catch(() => {});
   });
   window.addEventListener("offline", () => updateOfflineBanner());
   setInterval(() => {
+    if (!navigator.onLine) return;
     loadNotifs().catch(() => {});
     checkShiftTicker();
     loadChat({ silent: true }).catch(() => {});
@@ -2784,6 +2885,8 @@ async function boot() {
   document.getElementById("btnRefresh")?.addEventListener("click", () => doAppReload());
   document.getElementById("openProfile")?.addEventListener("click", () => showView("profile"));
   document.getElementById("openPasswordView")?.addEventListener("click", () => showView("password"));
+  document.getElementById("bioAddBtn")?.addEventListener("click", registerWebAuthn);
+  document.getElementById("bioRemoveBtn")?.addEventListener("click", removeWebAuthn);
   document.getElementById("homeBulkExit")?.addEventListener("click", () => {
     if (isViewer()) return toast("İzleyici modunda işlem yok");
     openBulkExitSheet();
@@ -2864,6 +2967,7 @@ async function loadProfile() {
     const { user } = await api("/api/app/profile");
     window.currentUser = user;
     me = user;
+    cacheSession({ ...(readCachedSession() || {}), ...user, has_webauthn: user.has_webauthn });
     document.getElementById("profileName").textContent = user.full_name || "—";
     document.getElementById("profileRole").textContent = roleLabelOf(user.role);
     const titleEl = document.getElementById("profileTitle");
@@ -2896,8 +3000,59 @@ async function loadProfile() {
       ? String(user.start_date).slice(0, 10)
       : "";
     document.getElementById("pfPhoto").value = user.photo_url || "";
+    updateBioUi(Boolean(user.has_webauthn));
   } catch (err) {
+    if (isNetworkError(err) && me) {
+      updateBioUi(Boolean(me.has_webauthn || localStorage.getItem("s360_webauthn_cred")));
+      return;
+    }
     toast(err.message || "Profil yüklenemedi");
+  }
+}
+
+function updateBioUi(has) {
+  const status = document.getElementById("bioStatus");
+  const addBtn = document.getElementById("bioAddBtn");
+  const removeBtn = document.getElementById("bioRemoveBtn");
+  if (status) {
+    status.textContent = has
+      ? "Parmak izi tanımlı · girişte otomatik kullanılır"
+      : "Parmak izi yok · sadece 1 adet eklenebilir";
+  }
+  if (addBtn) addBtn.classList.toggle("hidden", has);
+  if (removeBtn) removeBtn.classList.toggle("hidden", !has);
+}
+
+async function registerWebAuthn() {
+  if (!window.PublicKeyCredential) return toast("Bu cihaz parmak izini desteklemiyor");
+  if (!navigator.onLine) return toast("Parmak izi eklemek için internet gerekli");
+  try {
+    const options = await api("/api/auth/webauthn/register/options", { method: "POST", body: {} });
+    const attestation = await window.waCreate(options);
+    const data = await api("/api/auth/webauthn/register/verify", {
+      method: "POST",
+      body: attestation,
+    });
+    if (data.credId) localStorage.setItem("s360_webauthn_cred", data.credId);
+    else if (attestation.id) localStorage.setItem("s360_webauthn_cred", attestation.id);
+    if (me) me.has_webauthn = true;
+    updateBioUi(true);
+    toast("Parmak izi eklendi");
+  } catch (err) {
+    toast(err.message || "Parmak izi eklenemedi");
+  }
+}
+
+async function removeWebAuthn() {
+  if (!confirm("Parmak izi silinsin mi?")) return;
+  try {
+    await api("/api/auth/webauthn", { method: "DELETE" });
+    localStorage.removeItem("s360_webauthn_cred");
+    if (me) me.has_webauthn = false;
+    updateBioUi(false);
+    toast("Parmak izi silindi");
+  } catch (err) {
+    toast(err.message || "Silinemedi");
   }
 }
 

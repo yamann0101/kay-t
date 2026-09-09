@@ -11,7 +11,14 @@ if (remembered) $("username").value = remembered;
 fetch("/api/auth/me", { credentials: "include" })
   .then((r) => (r.ok ? r.json() : null))
   .then((d) => {
-    if (d?.user) location.href = "/app";
+    if (d?.user) {
+      try {
+        cacheSession(d.user);
+      } catch {
+        /* ignore */
+      }
+      location.href = "/app";
+    }
   })
   .catch(() => {});
 
@@ -20,13 +27,47 @@ $("forgot").addEventListener("click", (e) => {
   toast("Şifre sıfırlama yöneticiniz üzerinden yapılır.");
 });
 
-$("bio").addEventListener("click", async () => {
+async function biometricLogin({ silent = false } = {}) {
   if (!window.PublicKeyCredential) {
-    toast("Bu cihaz biyometriyi desteklemiyor.");
-    return;
+    if (!silent) toast("Bu cihaz biyometriyi desteklemiyor.");
+    return false;
   }
-  toast("Biyometrik giriş bir sonraki adımda aktifleştirilecek.");
-});
+  const credId = localStorage.getItem("s360_webauthn_cred") || "";
+  const username = ($("username").value || localStorage.getItem("s360_user") || "").trim();
+  if (!credId && !username) {
+    if (!silent) toast("Önce kullanıcı adı girin veya profilden parmak izi ekleyin.");
+    return false;
+  }
+  try {
+    const options = await api("/api/auth/webauthn/login/options", {
+      method: "POST",
+      body: { credId, username },
+    });
+    const assertion = await window.waGet(options);
+    const data = await api("/api/auth/webauthn/login/verify", {
+      method: "POST",
+      body: { userId: options.userId, response: assertion },
+    });
+    if (data.user) {
+      cacheSession(data.user);
+      if (assertion.id) localStorage.setItem("s360_webauthn_cred", assertion.id);
+      location.href = "/app";
+      return true;
+    }
+  } catch (err) {
+    if (!silent) toast(err.message || "Biyometrik giriş başarısız");
+  }
+  return false;
+}
+
+$("bio").addEventListener("click", () => biometricLogin({ silent: false }));
+
+// Kayıtlı parmak izi varsa otomatik dene (telefon PWA)
+if (localStorage.getItem("s360_webauthn_cred") && window.PublicKeyCredential) {
+  setTimeout(() => {
+    if (document.visibilityState === "visible") biometricLogin({ silent: true });
+  }, 400);
+}
 
 $("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -41,7 +82,8 @@ $("loginForm").addEventListener("submit", async (e) => {
     });
     if ($("remember").checked) localStorage.setItem("s360_user", $("username").value);
     else localStorage.removeItem("s360_user");
-    location.href = data.user.role === "admin" ? "/app" : "/app";
+    cacheSession(data.user);
+    location.href = "/app";
   } catch (err) {
     $("error").textContent = err.message;
   }

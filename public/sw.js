@@ -1,4 +1,4 @@
-const CACHE = "s360-v42";
+const CACHE = "s360-v52";
 const PRECACHE = [
   "/",
   "/app",
@@ -13,6 +13,7 @@ const PRECACHE = [
   "/js/admin.js",
   "/js/pwa.js",
   "/js/haptic.js",
+  "/js/webauthn-client.js",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/manifest.json",
@@ -62,7 +63,11 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE).then((c) => c.put(request, copy));
           return res;
         })
-        .catch(() => caches.match(request).then((r) => r || caches.match("/")))
+        .catch(() =>
+          caches
+            .match(request)
+            .then((r) => r || caches.match("/app") || caches.match("/app.html") || caches.match("/"))
+        )
     );
     return;
   }

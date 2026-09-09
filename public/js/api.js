@@ -1,12 +1,25 @@
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-    ...opts,
-    body: opts.body ? JSON.stringify(opts.body) : opts.rawBody,
-  });
+  let res;
+  try {
+    res = await fetch(path, {
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+      ...opts,
+      body: opts.body ? JSON.stringify(opts.body) : opts.rawBody,
+    });
+  } catch (err) {
+    const e = new Error(err?.message || "Ağ hatası");
+    e.network = true;
+    e.status = 0;
+    throw e;
+  }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "İstek başarısız");
+  if (!res.ok) {
+    const e = new Error(data.error || "İstek başarısız");
+    e.status = res.status;
+    e.data = data;
+    throw e;
+  }
   return data;
 }
 
@@ -116,5 +129,29 @@ function playNotifyBeep() {
     setTimeout(() => ctx.close().catch(() => {}), 400);
   } catch {
     /* ignore */
+  }
+}
+
+function cacheSession(user) {
+  try {
+    if (!user) return localStorage.removeItem("s360_session");
+    localStorage.setItem(
+      "s360_session",
+      JSON.stringify({ user, at: Date.now() })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function readCachedSession() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("s360_session") || "null");
+    if (!raw?.user) return null;
+    // 40 gün cache
+    if (Date.now() - Number(raw.at || 0) > 40 * 24 * 60 * 60 * 1000) return null;
+    return raw.user;
+  } catch {
+    return null;
   }
 }
