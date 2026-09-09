@@ -1080,16 +1080,16 @@ function foldSearch(value) {
     .trim();
 }
 
-function showMatchBanner({ title, body, willEnter }) {
+function showMatchBanner({ title, body, willEnter, kind }) {
   const box = document.getElementById("matchBanner");
   if (!box) return;
-  const enter = willEnter !== false;
+  const mode = kind || (willEnter === false ? "no" : willEnter === true ? "yes" : "info");
   box.classList.remove("hidden");
-  box.className = `match-banner open ${enter ? "yes" : "no"}`;
+  box.className = `match-banner open ${mode}`;
   box.innerHTML = `
     <div class="match-banner-ico">●</div>
     <div class="match-banner-txt">
-      <b>${escHtml(title || "Beklenen ziyaretçi")}</b>
+      <b>${escHtml(title || "Bildirim")}</b>
       <span>${escHtml(body || "")}</span>
     </div>
     <button type="button" class="match-banner-x" aria-label="Kapat">×</button>`;
@@ -1104,6 +1104,18 @@ function showMatchBanner({ title, body, willEnter }) {
   }, 16000);
   if (window.haptic) window.haptic("ok");
   if (typeof playNotifyBeep === "function") playNotifyBeep();
+}
+
+function showLivePushBanner({ title, body, notifType }) {
+  if (notifType === "chat" && window.chatOpen) return;
+  if (notifType === "alert" || /beklenen/i.test(String(title || ""))) {
+    const willEnter = !/GİRMEYECEK|GIRMEYECEK/i.test(String(body || ""));
+    showMatchBanner({ title, body, willEnter });
+    return;
+  }
+  const kind =
+    notifType === "emergency" || notifType === "admin" ? "no" : notifType === "cargo" || notifType === "key" ? "yes" : "info";
+  showMatchBanner({ title: title || "S-360", body, kind });
 }
 
 let alertMatchTimer = 0;
@@ -1832,6 +1844,15 @@ async function loadNotifs(opts = {}) {
     if (window.haptic) window.haptic("ok");
     if (typeof playNotifyBeep === "function" && !window.chatOpen) playNotifyBeep();
     setTimeout(() => document.getElementById("openNotif")?.classList.remove("ring"), 2800);
+    // Push gelmese bile üstten canlı banner (uygulama açıkken)
+    const fresh = items.find((n) => String(n.created_at || "") > lastNotifStamp);
+    if (fresh && !opts.silentBanner) {
+      showLivePushBanner({
+        title: fresh.title,
+        body: fresh.body,
+        notifType: fresh.type || "info",
+      });
+    }
   }
   if (newest) lastNotifStamp = newest;
   if (opts.markRead) {
@@ -2691,30 +2712,55 @@ document.getElementById("emergencyForm").addEventListener("submit", async (e) =>
 async function enablePush(force) {
   try {
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-      if (force) toast("Bu tarayıcı bildirimi desteklemiyor");
+      if (force) toast("Bu tarayıcı / PWA bildirimi desteklemiyor (iOS’ta Ana Ekrana ekleyin)");
       return false;
     }
     const { publicKey } = await api("/api/auth/vapid");
+    if (!publicKey) {
+      if (force) toast("Sunucu VAPID anahtarı yok");
+      return false;
+    }
     const reg = await navigator.serviceWorker.ready;
     let perm = Notification.permission;
     if (perm !== "granted") {
+      // Mobilde kullanıcı jesti gerekir
       perm = await Notification.requestPermission();
     }
     if (perm !== "granted") {
-      if (force) toast("Bildirim izni verilmedi");
+      if (force) toast("Bildirim izni verilmedi — Ayarlar’dan izin verin");
       return false;
     }
+    const savedKey = localStorage.getItem("s360_vapid") || "";
     let sub = await reg.pushManager.getSubscription();
+    const needFresh = !sub || (savedKey && savedKey !== publicKey) || force;
+    if (needFresh && sub && savedKey && savedKey !== publicKey) {
+      try {
+        await sub.unsubscribe();
+      } catch {
+        /* ignore */
+      }
+      sub = null;
+    }
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
     }
-    await api("/api/app/push/subscribe", { method: "POST", body: sub });
+    const json = typeof sub.toJSON === "function" ? sub.toJSON() : sub;
+    await api("/api/app/push/subscribe", {
+      method: "POST",
+      body: {
+        endpoint: json.endpoint,
+        keys: json.keys,
+      },
+    });
+    localStorage.setItem("s360_vapid", publicKey);
+    localStorage.setItem("s360_push_ok", "1");
     return true;
-  } catch {
-    if (force) toast("Bildirim açılamadı");
+  } catch (err) {
+    console.warn("enablePush", err);
+    if (force) toast(err?.message || "Bildirim açılamadı");
     return false;
   }
 }
@@ -2828,7 +2874,7 @@ async function boot() {
   }, 12_000);
   document.getElementById("enableNotifBtn")?.addEventListener("click", async () => {
     const ok = await enablePush(true);
-    if (ok) toast("Bildirim izni açıldı");
+    if (ok) toast("Canlı bildirim açıldı · test için acil/kargo gönderin");
   });
   document.getElementById("btnRefresh")?.addEventListener("click", () => doAppReload());
   document.getElementById("openProfile")?.addEventListener("click", () => showView("profile"));
@@ -2894,6 +2940,14 @@ async function boot() {
       openChatPanel();
       if (ev.data.chatId) setTimeout(() => jumpToChatMessage(ev.data.chatId), 350);
     }
+    if (ev.data?.type === "PUSH_EVENT" && !ev.data.silent) {
+      showLivePushBanner({
+        title: ev.data.title,
+        body: ev.data.body,
+        notifType: ev.data.notifType || ev.data.type || "info",
+      });
+      loadNotifs({ silentBanner: true }).catch(() => {});
+    }
     if (ev.data?.type === "ALERT_MATCH") {
       const body = String(ev.data.body || "");
       const willEnter = !/GİRMEYECEK|GIRMEYECEK/i.test(body);
@@ -2902,7 +2956,7 @@ async function boot() {
         body,
         willEnter,
       });
-      loadNotifs().catch(() => {});
+      loadNotifs({ silentBanner: true }).catch(() => {});
     }
   });
   if (location.hash.startsWith("#chat-")) {

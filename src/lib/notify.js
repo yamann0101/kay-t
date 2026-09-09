@@ -3,12 +3,25 @@ import { query } from "../db/pool.js";
 import { foldSearch, namesMatch, alertPersonMatch, nextNotifyAt, parseNotifyTime } from "./text.js";
 import { parseShift, hhmmNow, todayKey } from "./appSettings.js";
 
+async function dropDeadSubscription(endpoint) {
+  if (!endpoint) return;
+  try {
+    await query(`DELETE FROM push_subscriptions WHERE endpoint = $1`, [endpoint]);
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function sendPushAll({ title, body, type = "info", tag, chatId, replyTo, url } = {}) {
   const t = String(title || "S-360").trim();
   const b = String(body || "").trim();
   if (!t || !b) return 0;
   await query(`INSERT INTO notifications (title, body, type) VALUES ($1,$2,$3)`, [t, b, type]);
   const { rows } = await query(`SELECT endpoint, p256dh, auth FROM push_subscriptions`);
+  if (!rows.length) {
+    console.warn("[push] Abonelik yok — üstten sistem bildirimi gidemez. Cihazda Bildirim iznini açın.");
+    return 0;
+  }
   const payload = JSON.stringify({
     title: t.startsWith("S-360") ? t : `S-360 · ${t}`,
     body: b,
@@ -18,15 +31,30 @@ export async function sendPushAll({ title, body, type = "info", tag, chatId, rep
     replyTo: replyTo || null,
     url: url || (chatId ? `/app#chat-${chatId}` : "/app"),
   });
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     rows.map((s) =>
       webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        payload
+        payload,
+        { urgency: "high", TTL: 60 }
       )
     )
   );
-  return rows.length;
+  let sent = 0;
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (r.status === "fulfilled") {
+      sent += 1;
+      continue;
+    }
+    const err = r.reason;
+    const status = err?.statusCode || err?.status;
+    console.warn("[push] gönderilemedi", status || "", err?.body || err?.message || err);
+    if (status === 404 || status === 410 || status === 403) {
+      await dropDeadSubscription(rows[i].endpoint);
+    }
+  }
+  return sent;
 }
 
 export async function processDueKeyNotifs() {
@@ -174,7 +202,6 @@ function minutesOf(hhmm) {
 function inWindow(nowMin, start, end) {
   if (start == null) return false;
   if (end == null) return nowMin === start;
-  // geceyi aşan aralık: 20:00 → 06:00
   if (end < start) return nowMin >= start || nowMin <= end;
   return nowMin >= start && nowMin <= end;
 }
@@ -212,12 +239,10 @@ export async function processCustomReminders() {
     const end = minutesOf(r.end_time);
     if (!inWindow(nowMin, start, end)) continue;
     const interval = Math.max(15, Number(r.interval_min) || 120);
-    // slot: start'tan itibaren interval dakikada bir
     let hit = false;
     if (end == null) {
       hit = nowMin === start;
     } else if (end < start) {
-      // gece aşımı
       const elapsed = nowMin >= start ? nowMin - start : nowMin + (24 * 60 - start);
       hit = elapsed % interval === 0;
     } else {

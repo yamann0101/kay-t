@@ -15,6 +15,7 @@ import {
   backfillVisitorPeople,
   detachVisitFromPerson,
 } from "../lib/visitors.js";
+import { sendPushAll } from "../lib/notify.js";
 
 function sendSheet(res, filename, sheetName, headers, rows, format) {
   if (format === "csv") {

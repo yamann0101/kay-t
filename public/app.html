@@ -14,9 +14,9 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=57" />
-  <link rel="stylesheet" href="/css/app.css?v=57" />
-  <link rel="stylesheet" href="/css/login.css?v=57" />
+  <link rel="stylesheet" href="/css/tokens.css?v=58" />
+  <link rel="stylesheet" href="/css/app.css?v=58" />
+  <link rel="stylesheet" href="/css/login.css?v=58" />
   <script>
     try {
       var __v = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view");
@@ -521,7 +521,8 @@
               <b>Bildirimler</b>
               <span>Kilit ekranı ve sesli bildirim için izin verin.</span>
             </div>
-            <button type="button" class="btn-gold" id="enableNotifBtn">Bildirim iznini aç</button>
+            <button type="button" class="btn-gold" id="enableNotifBtn">Üstten canlı bildirimi aç</button>
+            <p class="muted" style="font-size:11px;margin:6px 0 0;color:#999">PWA’da (Ana Ekran) bir kez izin verin. Kapalıyken de sistem bildirimi gelir.</p>
           </div>
           <div class="settings-row">
             <div>
@@ -840,11 +841,11 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=57"></script>
-  <script src="/js/api.js?v=57"></script>
-  <script src="/js/webauthn-client.js?v=57"></script>
-  <script src="/js/app.js?v=57"></script>
-  <script src="/js/pwa.js?v=57"></script>
+  <script src="/js/haptic.js?v=58"></script>
+  <script src="/js/api.js?v=58"></script>
+  <script src="/js/webauthn-client.js?v=58"></script>
+  <script src="/js/app.js?v=58"></script>
+  <script src="/js/pwa.js?v=58"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });

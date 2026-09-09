@@ -1,4 +1,4 @@
-const CACHE = "s360-v57";
+const CACHE = "s360-v58";
 const PRECACHE = [
   "/",
   "/app",
@@ -92,29 +92,35 @@ self.addEventListener("push", (event) => {
   }
   event.waitUntil(
     (async () => {
-      if (data.type === "chat" && chatOpenFocused) return;
       const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const focused = clients.some((c) => c.focused);
-      if (data.type === "chat" && focused && chatOpenFocused) return;
-      if (data.type === "alert" || /beklenen/i.test(String(data.title || ""))) {
+      // Sohbet açıkken sadece sohbet push'unu bastır; diğerleri her zaman üstte görünsün
+      if (data.type === "chat" && (chatOpenFocused || focused)) {
         for (const c of clients) {
-          c.postMessage({
-            type: "ALERT_MATCH",
-            title: data.title,
-            body: data.body,
-            tag: data.tag,
-          });
+          c.postMessage({ type: "PUSH_EVENT", ...data, silent: true });
         }
+        return;
       }
-      await self.registration.showNotification(data.title, {
-        body: data.body,
+      for (const c of clients) {
+        c.postMessage({
+          type: "PUSH_EVENT",
+          title: data.title,
+          body: data.body,
+          tag: data.tag,
+          notifType: data.type,
+          chatId: data.chatId || null,
+          url: data.url || "/app",
+        });
+      }
+      await self.registration.showNotification(data.title || "S-360", {
+        body: data.body || "",
         icon: "/icons/icon-192.png",
         badge: "/icons/icon-192.png",
         vibrate: [280, 80, 280, 80, 400],
         silent: false,
         renotify: true,
-        requireInteraction: true,
-        tag: data.tag || "s360",
+        requireInteraction: data.type === "alert" || data.type === "emergency" || data.type === "admin",
+        tag: data.tag || `s360-${Date.now()}`,
         timestamp: Date.now(),
         data: {
           url: data.url || "/app",
