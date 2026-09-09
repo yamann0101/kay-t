@@ -51,7 +51,10 @@ export function namesMatch(left, right) {
 function tokenHit(left, right) {
   if (!left || !right) return false;
   if (left === right) return true;
-  if (left.length >= 2 && right.length >= 2 && (left.includes(right) || right.includes(left))) return true;
+  // En az 2 karakter: kısmi eşleşme (ad yazınca da çıksın)
+  if (left.length >= 2 && right.length >= 2 && (left.startsWith(right) || right.startsWith(left) || left.includes(right) || right.includes(left))) {
+    return true;
+  }
   return false;
 }
 

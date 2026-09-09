@@ -304,15 +304,86 @@ export async function attachPersonToVisit(visit, opts = {}) {
 
 export async function withPersonStats(visit, fields) {
   const flat = flattenVisitor(visit, fields);
-  if (!visit?.person_id) return flat;
+  let personId = visit?.person_id;
+  if (!personId) {
+    const key = personNameKey(visit);
+    if (key) {
+      const found = await query(`SELECT id FROM visitor_people WHERE name_key = $1`, [key]);
+      personId = found.rows[0]?.id;
+    }
+  }
+  if (!personId) return flat;
   const { rows } = await query(
     `SELECT visit_count, first_visit_date, last_visit_date, first_visit_at, last_visit_at
      FROM visitor_people WHERE id = $1`,
-    [visit.person_id]
+    [personId]
   );
   const p = rows[0];
   if (!p) return flat;
-  return { ...flat, ...p, person_id: visit.person_id };
+  return { ...flat, ...p, person_id: personId };
+}
+
+/** Tek ziyaret silindikten sonra kişi özetini güncelle (sadece o kayıt gider) */
+export async function detachVisitFromPerson(visit) {
+  if (!visit?.id) return;
+  let pid = visit.person_id || null;
+  const nameKey = personNameKey(visit);
+  if (!pid && nameKey) {
+    const found = await query(`SELECT id FROM visitor_people WHERE name_key = $1`, [nameKey]);
+    pid = found.rows[0]?.id || null;
+  }
+  if (!pid) return;
+
+  const { rows: remaining } = await query(
+    `SELECT * FROM visitors WHERE person_id = $1 ORDER BY created_at DESC`,
+    [pid]
+  );
+
+  if (!remaining.length) {
+    await query(`DELETE FROM visitor_people WHERE id = $1`, [pid]);
+    return;
+  }
+
+  const last = remaining[0];
+  const first = remaining[remaining.length - 1];
+  const dates = [...new Set(remaining.map((r) => String(r.visit_date || "").trim()).filter(Boolean))];
+  await query(
+    `UPDATE visitor_people SET
+       first_name = COALESCE($2, first_name),
+       last_name = COALESCE($3, last_name),
+       full_name = COALESCE($4, full_name),
+       company = COALESCE($5, company),
+       plate = $6,
+       phone = COALESCE($7, phone),
+       visit_count = $8,
+       first_visit_at = $9,
+       last_visit_at = $10,
+       first_visit_date = $11,
+       last_visit_date = $12,
+       last_entry_type = $13,
+       last_visit_type = $14,
+       last_visit_id = $15,
+       visit_dates = $16
+     WHERE id = $1`,
+    [
+      pid,
+      last.first_name || null,
+      last.last_name || null,
+      last.full_name || null,
+      last.company || null,
+      last.plate || null,
+      last.phone || null,
+      remaining.length,
+      first.created_at || first.entered_at,
+      last.created_at || last.entered_at,
+      first.visit_date || null,
+      last.visit_date || null,
+      last.entry_type || resolveEntryType(last.plate),
+      last.visit_type || null,
+      last.id,
+      JSON.stringify(dates.slice(-40)),
+    ]
+  );
 }
 
 export async function backfillVisitorPeople() {

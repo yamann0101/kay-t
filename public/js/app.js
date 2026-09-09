@@ -141,6 +141,20 @@ function showView(name) {
   if (name === "announcements") loadAnn();
   if (name === "profile") loadProfile();
   if (name === "reminders") loadReminders();
+  if (name === "visitor-form") {
+    const hasFields = Boolean(document.querySelector("#regFields input, #regFields textarea, #regFields select"));
+    if (!hasFields) {
+      loadSettings()
+        .then(() => {
+          renderRegFields();
+          fillNowFields();
+          bindAlertMatchLive();
+        })
+        .catch(() => {});
+    } else {
+      bindAlertMatchLive();
+    }
+  }
   applyRoleUi();
 }
 
@@ -386,11 +400,16 @@ async function loadHome() {
   });
   document.querySelectorAll("[data-home-del]").forEach((b) => {
     b.onclick = async () => {
-      if (!confirm("Kayıt her yerden silinsin mi?")) return;
+      if (!confirm("Bu ziyaret kaydı silinsin mi? (Geçmiş diğer kayıtlar kalır)")) return;
       try {
         await api(`/api/app/visitors/${b.dataset.homeDel}`, { method: "DELETE" });
         toast("Kayıt silindi");
         loadHome();
+        if (document.getElementById("view-visitors")?.classList.contains("active")) {
+          await refreshVisitors();
+        } else {
+          visitorCache = visitorCache.filter((x) => String(x.id) !== String(b.dataset.homeDel));
+        }
       } catch (err) {
         toast(err.message || "Silinemedi");
       }
@@ -1084,14 +1103,25 @@ async function checkAlertMatchLive() {
   const first = String(fieldEl("first_name")?.value || "").trim();
   const last = String(fieldEl("last_name")?.value || "").trim();
   const company = String(fieldEl("company")?.value || "").trim();
-  if (first.length < 2 && last.length < 2 && company.length < 2) return;
-  const key = `${foldSearch(first)}|${foldSearch(last)}|${foldSearch(company)}`;
+  const plate = String(fieldEl("plate")?.value || "").trim();
+  const notes = String(fieldEl("notes")?.value || "").trim();
+  // Her alandan en az 2 karakter yazılınca eşleşme dene
+  if (first.length < 2 && last.length < 2 && company.length < 2 && plate.length < 2 && notes.length < 2) {
+    return;
+  }
+  const key = `${foldSearch(first)}|${foldSearch(last)}|${foldSearch(company)}|${foldSearch(plate)}|${foldSearch(notes)}`;
   if (key === lastAlertMatchKey) return;
+  lastAlertMatchKey = key;
   try {
-    const q = new URLSearchParams({ first_name: first, last_name: last, company });
+    const q = new URLSearchParams({
+      first_name: first,
+      last_name: last,
+      company,
+      plate,
+      notes,
+    });
     const { items } = await api(`/api/app/alerts/match?${q}`);
     if (!items?.length) return;
-    lastAlertMatchKey = key;
     const a = items[0];
     const willEnter = !(a.will_enter === false || a.will_enter === "false" || a.will_enter === 0);
     const name = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.full_name || "";
@@ -1106,18 +1136,19 @@ async function checkAlertMatchLive() {
 }
 
 function bindAlertMatchLive() {
-  if (window.__alertMatchBound) return;
-  window.__alertMatchBound = true;
+  const form = document.getElementById("visitorForm");
+  if (!form) return;
+  if (form.dataset.alertMatchBound === "1") return;
+  form.dataset.alertMatchBound = "1";
   const kick = () => {
     clearTimeout(alertMatchTimer);
-    alertMatchTimer = setTimeout(() => checkAlertMatchLive(), 280);
+    lastAlertMatchKey = "";
+    alertMatchTimer = setTimeout(() => checkAlertMatchLive(), 200);
   };
-  ["first_name", "last_name", "company"].forEach((name) => {
-    document.querySelector(`#visitorForm [name="${name}"]`)?.addEventListener("input", kick);
-  });
-  document.getElementById("regFields")?.addEventListener("input", (e) => {
+  form.addEventListener("input", (e) => {
     const n = e.target?.name;
-    if (n === "first_name" || n === "last_name" || n === "company") kick();
+    if (!n) return;
+    if (["first_name", "last_name", "company", "plate", "notes", "host", "phone"].includes(n)) kick();
   });
 }
 
@@ -1376,10 +1407,11 @@ function renderVisitors() {
   document.querySelectorAll("[data-vis-del]").forEach((b) => {
     b.onclick = async (e) => {
       e.stopPropagation();
-      if (!confirm("Kayıt her yerden silinsin mi?")) return;
+      if (!confirm("Bu ziyaret kaydı silinsin mi? (Geçmiş diğer kayıtlar kalır)")) return;
       try {
         await api(`/api/app/visitors/${b.dataset.visDel}`, { method: "DELETE" });
         toast("Kayıt silindi");
+        visitorCache = visitorCache.filter((x) => String(x.id) !== String(b.dataset.visDel) && String(x.visit_id) !== String(b.dataset.visDel));
         await refreshVisitors();
         loadHome();
       } catch (err) {
@@ -1460,7 +1492,7 @@ async function openBulkExitSheet() {
 }
 
 async function refreshVisitors() {
-  const { items } = await api("/api/app/visitors/people");
+  const { items } = await api("/api/app/visitors?limit=200");
   visitorCache = items || [];
   renderVisitors();
 }
@@ -1564,12 +1596,11 @@ async function openVisitorSheet(id, mode) {
       ["Plaka", v.plate],
       ["Tür", TYPE_TR[visTypeOf(v)]],
       ["Giriş Şekli", visEntryLabel(v)],
-      ["Toplam giriş", v.visit_count ? `${v.visit_count}` : ""],
-      ["İlk geliş", v.first_visit_date],
-      ["Son geliş", v.last_visit_date || v.visit_date],
-      ["Son giriş", v.entry_time],
-      ["Çıkış", v.exit_time],
+      ["Bu kayıt tarihi", v.visit_date || (v.created_at ? fmtDateTime(v.created_at) : "")],
+      ["Giriş saati", v.entry_time],
+      ["Çıkış", v.exit_time || (visInside(v) ? "—" : "")],
       ["Durum", visInside(v) ? "İçeride" : "Çıktı"],
+      ["Kişi toplam giriş", v.visit_count ? `${v.visit_count}` : ""],
       ["Açıklama", v.notes],
       ["Ek kişiler", comps.map((c) => `${c.first_name || ""} ${c.last_name || ""}`.trim()).filter(Boolean).join(", ")],
     ]
@@ -1577,23 +1608,25 @@ async function openVisitorSheet(id, mode) {
       .map(([k, val]) => `<div><span>${k}</span><b>${escHtml(val)}</b></div>`)
       .join("");
     openSheet(
-      "Ziyaretçi Detayı",
+      "Ziyaret Kaydı",
       `<div class="sheet-kv">${rows}</div>
+       <p class="sheet-note">Silme yalnızca bu kaydı kaldırır; aynı kişinin diğer ziyaretleri kalır.</p>
        <div class="vis-acts" style="margin-top:10px;flex-wrap:wrap">
          <button type="button" class="vis-act" id="sheetCopyBtn">Kopyala</button>
          ${canEditVisitor(v) ? `<button type="button" class="vis-act edit" id="sheetEditBtn">Düzenle</button>` : ""}
-         ${canEditVisitor(v) ? `<button type="button" class="vis-act" id="sheetDelBtn" style="border-color:rgba(239,68,68,.5);color:#f87171">Sil</button>` : ""}
+         ${canEditVisitor(v) ? `<button type="button" class="vis-act" id="sheetDelBtn" style="border-color:rgba(239,68,68,.5);color:#f87171">Bu Kaydı Sil</button>` : ""}
          ${visInside(v) && canExitVisitor() ? `<button type="button" class="vis-act exit" id="sheetExitBtn">Çıkış</button>` : ""}
        </div>`
     );
     document.getElementById("sheetCopyBtn").onclick = () => copyVisitor(v);
     document.getElementById("sheetEditBtn")?.addEventListener("click", () => openVisitorSheet(vid, "edit"));
     document.getElementById("sheetDelBtn")?.addEventListener("click", async () => {
-      if (!confirm("Kayıt her yerden silinsin mi?")) return;
+      if (!confirm("Bu ziyaret kaydı silinsin mi? (Geçmiş diğer kayıtlar kalır)")) return;
       try {
         await api(`/api/app/visitors/${vid}`, { method: "DELETE" });
         toast("Kayıt silindi");
         closeSheet();
+        visitorCache = visitorCache.filter((x) => String(x.id) !== String(vid) && String(x.visit_id) !== String(vid));
         await refreshVisitors();
         loadHome();
       } catch (err) {
@@ -2478,6 +2511,12 @@ function confirmRefreshIfDirty() {
 }
 
 function doAppReload() {
+  const onReg = document.getElementById("view-visitor-form")?.classList.contains("active");
+  // Kayıt ekranında hard reload textbox'ları siler — soft yenile (form korunur)
+  if (onReg) {
+    softRefreshApp();
+    return;
+  }
   if (!confirmRefreshIfDirty()) {
     try {
       window.hidePtr?.();
@@ -2745,6 +2784,11 @@ async function boot() {
     showView("home");
   }
   await loadSettings().catch(() => {});
+  if (restored === "visitor-form") {
+    renderRegFields();
+    fillNowFields();
+    bindAlertMatchLive();
+  }
   await loadHome().catch(() => {});
   if (daysEl && window.currentUser?.days_worked != null) {
     daysEl.textContent = window.currentUser.days_worked;

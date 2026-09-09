@@ -10,6 +10,7 @@ import {
   normalizeCompanionList,
   attachPersonToVisit,
   withPersonStats,
+  detachVisitFromPerson,
   resolveEntryType,
 } from "../lib/visitors.js";
 import { sendPushAll, notifyVisitorAlerts, matchVisitorAlerts } from "../lib/notify.js";
@@ -484,12 +485,16 @@ router.get("/alerts/match", async (req, res) => {
   const first = String(req.query.first_name || "").trim();
   const last = String(req.query.last_name || "").trim();
   const company = String(req.query.company || "").trim();
-  if (!first && !last && !company) return res.json({ items: [] });
+  const plate = String(req.query.plate || "").trim();
+  const notes = String(req.query.notes || "").trim();
+  if (!first && !last && !company && !plate && !notes) return res.json({ items: [] });
   const hits = await matchVisitorAlerts({
     first_name: first,
     last_name: last,
     full_name: `${first} ${last}`.trim(),
     company,
+    plate,
+    notes,
   });
   res.json({
     items: hits.map((a) => ({
@@ -559,7 +564,6 @@ router.delete("/visitors/:id", async (req, res) => {
   await query(`UPDATE visitor_alerts SET matched_visitor_id = NULL WHERE matched_visitor_id = $1`, [
     req.params.id,
   ]);
-  await query(`UPDATE visitor_people SET last_visit_id = NULL WHERE last_visit_id = $1`, [req.params.id]);
   await query(
     `DELETE FROM movements
      WHERE person_name = $1
@@ -568,12 +572,14 @@ router.delete("/visitors/:id", async (req, res) => {
     [v.full_name, v.plate || null, v.created_at || v.entered_at || new Date()]
   );
   await query(`DELETE FROM visitors WHERE id=$1`, [req.params.id]);
+  // Diğer geçmiş ziyaretler kalsın; sadece bu kaydı kişi özetinden düş
+  await detachVisitFromPerson(v);
   await writeLog(
     req,
     "Ziyaretçi silme",
     `${req.user.full_name} · ${v.full_name || v.record_no} · ${new Date().toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}`
   );
-  res.json({ ok: true });
+  res.json({ ok: true, id: req.params.id });
 });
 
 router.get("/keys", async (req, res) => {

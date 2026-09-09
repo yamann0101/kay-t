@@ -52,14 +52,22 @@ export async function processDueKeyNotifs() {
 export async function matchVisitorAlerts(visit) {
   const { rows } = await query(`SELECT * FROM visitor_alerts WHERE active = TRUE AND matched_at IS NULL`);
   const company = foldSearch(visit.company);
+  const plate = foldSearch(visit.plate);
+  const notes = foldSearch(visit.notes);
   const hits = [];
   for (const a of rows) {
     const nameHit = alertPersonMatch(visit, a);
     const companyHit = Boolean(
       a.company_key && company && (company === foldSearch(a.company_key) || namesMatch(company, a.company_key))
     );
-    // İsim veya soyisim veya şirket eşleşirse bildirim
-    if (nameHit || companyHit) hits.push(a);
+    const plateHit = Boolean(plate && a.notes && foldSearch(a.notes).includes(plate));
+    const notesHit = Boolean(
+      notes &&
+        ((a.notes && (foldSearch(a.notes).includes(notes) || notes.includes(foldSearch(a.notes)))) ||
+          (a.company_key && namesMatch(notes, a.company_key)) ||
+          alertPersonMatch({ first_name: visit.notes, last_name: "", full_name: visit.notes }, a))
+    );
+    if (nameHit || companyHit || plateHit || notesHit) hits.push(a);
   }
   return hits;
 }
