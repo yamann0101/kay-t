@@ -8,7 +8,7 @@ if ("serviceWorker" in navigator) {
         const sw = reg.installing;
         if (!sw) return;
         sw.addEventListener("statechange", () => {
-          // Yeni SW'yi arka planda al; sayfayı yenileme / çıkış yaptırma
+          // Yeni SW arka planda hazır olsun; sayfa yenileme / çıkış YOK
           if (sw.state === "installed" && navigator.serviceWorker.controller) {
             sw.postMessage({ type: "SKIP_WAITING" });
           }
@@ -19,14 +19,8 @@ if ("serviceWorker" in navigator) {
     }
   });
 
-  // controllerchange'de location.reload() YAPMA — oturum düşüyor gibi görünüyordu
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    try {
-      if (typeof softRefreshApp === "function") softRefreshApp().catch(() => {});
-    } catch {
-      /* ignore */
-    }
-  });
+  // Güncellemede oturumu düşürme — reload yok
+  navigator.serviceWorker.addEventListener("controllerchange", () => {});
 }
 
 function ptrEl() {
@@ -52,7 +46,6 @@ window.hidePtr = function hidePtr() {
   setPtrProgress(0, false);
 };
 
-// Pull-to-refresh: ekranın ~%55'ine çekince (kayınca tetiklenmesin)
 (function bindPullRefresh() {
   let startY = 0;
   let pulling = false;
@@ -76,14 +69,8 @@ window.hidePtr = function hidePtr() {
   };
 
   const triggerReload = () => {
-    if (regDirty() && !confirm("Kayıt formu dolu. Yenilerseniz yazdıklarınız silinir. Devam edilsin mi?")) {
-      setPtrProgress(0, false);
-      return;
-    }
     setPtrProgress(1, true);
-    if (typeof softRefreshApp === "function") {
-      softRefreshApp().finally(() => setPtrProgress(0, false));
-    } else if (typeof doAppReload === "function") {
+    if (typeof doAppReload === "function") {
       doAppReload();
     } else {
       location.reload();

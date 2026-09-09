@@ -34,7 +34,9 @@ html {
   height: 100svh;
   max-height: 100svh;
   overflow: hidden;
-  overscroll-behavior-y: auto;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
   background: #050505;
 }
 body {
@@ -44,7 +46,8 @@ body {
   color: var(--text);
   font-family: var(--font);
   overflow: hidden;
-  overscroll-behavior-y: auto;
+  overscroll-behavior: none;
+  touch-action: manipulation;
   max-width: 100%;
   width: 100%;
   height: 100%;

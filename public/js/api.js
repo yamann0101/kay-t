@@ -148,10 +148,38 @@ function readCachedSession() {
   try {
     const raw = JSON.parse(localStorage.getItem("s360_session") || "null");
     if (!raw?.user) return null;
-    // 40 gün cache
     if (Date.now() - Number(raw.at || 0) > 40 * 24 * 60 * 60 * 1000) return null;
     return raw.user;
   } catch {
     return null;
+  }
+}
+
+function saveLocalLogin(username, password) {
+  try {
+    const payload = btoa(unescape(encodeURIComponent(JSON.stringify({ u: username, p: password }))));
+    localStorage.setItem("s360_saved_login", payload);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readSavedLogin() {
+  try {
+    const raw = localStorage.getItem("s360_saved_login");
+    if (!raw) return null;
+    const obj = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    if (!obj?.u || !obj?.p) return null;
+    return obj;
+  } catch {
+    return null;
+  }
+}
+
+function clearLocalLogin() {
+  try {
+    localStorage.removeItem("s360_saved_login");
+  } catch {
+    /* ignore */
   }
 }

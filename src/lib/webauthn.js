@@ -46,7 +46,7 @@ export async function regOptions(req, user) {
     attestationType: "none",
     authenticatorSelection: {
       authenticatorAttachment: "platform",
-      userVerification: "required",
+      userVerification: "preferred",
       residentKey: "preferred",
     },
     excludeCredentials: user.webauthn_cred_id
@@ -93,7 +93,7 @@ export async function authOptions(req, user) {
   }
   const options = await generateAuthenticationOptions({
     rpID,
-    userVerification: "required",
+    userVerification: "preferred",
     allowCredentials: [{ id: user.webauthn_cred_id, transports: ["internal"] }],
   });
   putChallenge(`auth:${user.id}`, options.challenge);

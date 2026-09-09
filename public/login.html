@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -15,8 +15,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=52" />
-  <link rel="stylesheet" href="/css/login.css?v=52" />
+  <link rel="stylesheet" href="/css/tokens.css?v=53" />
+  <link rel="stylesheet" href="/css/login.css?v=53" />
 </head>
 <body class="login-page framed">
   <div class="phone-shell">
@@ -99,10 +99,13 @@
     </div>
   </div>
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=19"></script>
-  <script src="/js/api.js?v=52"></script>
-  <script src="/js/webauthn-client.js?v=52"></script>
-  <script src="/js/login.js?v=52"></script>
-  <script src="/js/pwa.js?v=52"></script>
+  <script src="/js/haptic.js?v=53"></script>
+  <script src="/js/api.js?v=53"></script>
+  <script src="/js/webauthn-client.js?v=53"></script>
+  <script src="/js/login.js?v=53"></script>
+  <script src="/js/pwa.js?v=53"></script>
+  <script>
+    document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
+  </script>
 </body>
 </html>

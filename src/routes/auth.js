@@ -134,6 +134,15 @@ router.delete("/webauthn", authRequired, async (req, res) => {
   res.json({ ok: true, has_webauthn: false });
 });
 
+router.post("/webauthn/clear", authRequired, async (req, res) => {
+  await query(
+    `UPDATE users SET webauthn_cred_id=NULL, webauthn_public_key=NULL, webauthn_counter=0, updated_at=NOW()
+     WHERE id=$1`,
+    [req.user.id]
+  );
+  res.json({ ok: true, has_webauthn: false });
+});
+
 router.post("/webauthn/login/options", async (req, res) => {
   try {
     const credId = String(req.body?.credId || "").trim();

@@ -2,15 +2,15 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/icons/icon-192.png" />
   <title>S-360 · Yönetici</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=21" />
-  <link rel="stylesheet" href="/css/admin.css?v=21" />
-  <link rel="stylesheet" href="/css/login.css?v=21" />
+  <link rel="stylesheet" href="/css/tokens.css?v=53" />
+  <link rel="stylesheet" href="/css/admin.css?v=53" />
+  <link rel="stylesheet" href="/css/login.css?v=53" />
 </head>
 <body class="admin-body">
   <div class="aside-bg hidden" id="asideBg"></div>
@@ -318,8 +318,11 @@
     </main>
   </div>
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=21"></script>
-  <script src="/js/api.js?v=21"></script>
-  <script src="/js/admin.js?v=21"></script>
+  <script src="/js/haptic.js?v=53"></script>
+  <script src="/js/api.js?v=53"></script>
+  <script src="/js/admin.js?v=53"></script>
+  <script>
+    document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
+  </script>
 </body>
 </html>

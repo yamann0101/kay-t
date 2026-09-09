@@ -2481,22 +2481,27 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   display: flex;
   flex-direction: column;
 }
-.offline-banner {
+.offline-banner { display: none !important; }
+.server-banner {
   position: sticky;
   top: 0;
   z-index: 50;
   display: none;
-  padding: 6px 12px;
-  font-size: 11px;
+  padding: 8px 12px;
+  font-size: 12px;
   font-weight: 700;
   text-align: center;
   background: #7c2d12;
   color: #ffedd5;
 }
-.offline-banner.show { display: block; }
-.offline-banner.sync {
-  background: #14532d;
-  color: #dcfce7;
+.server-banner.show { display: block; }
+.server-banner button {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--gold-2);
+  color: #111;
+  font-weight: 700;
 }
 .alert-form {
   display: grid;
@@ -2714,3 +2719,44 @@ html.kb-open #chatFab {
 .viewer-mode .write-only { display: none !important; }
 .rem-row { align-items: flex-start; }
 .rem-row small { display: block; color: #888; margin-top: 4px; }
+
+.settings-pad { padding-bottom: calc(24px + var(--safe-bottom)); }
+.settings-card { padding: 4px 0; }
+.settings-row {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row b { display: block; color: #fff; font-size: 14px; }
+.settings-row span { display: block; color: #999; font-size: 12px; line-height: 1.35; margin-top: 4px; }
+.settings-row .btn-gold { width: 100%; margin-top: 4px; }
+.profile-pad {
+  padding-bottom: calc(28px + var(--safe-bottom));
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.bio-card { padding: 14px; margin-bottom: 12px; }
+.bio-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.bio-head b { color: var(--gold-2); }
+.bio-card #bioStatus { margin: 0 0 10px; font-size: 12px; color: #aaa; line-height: 1.4; }
+.bio-pass-wrap { display: grid; gap: 6px; margin-bottom: 10px; font-size: 12px; color: #aaa; }
+.bio-pass-wrap input {
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: #0d0d0d;
+  color: #fff;
+  padding: 0 12px;
+}
+.bio-actions { display: grid; gap: 8px; }
+.bio-del { border-color: rgba(239,68,68,.45) !important; color: #f87171 !important; }
+.app-root:has(#view-settings.active) .app-scroll,
+.app-root:has(#view-profile.active) .app-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 380px) {
+  .profile-grid { grid-template-columns: 1fr; }
+}

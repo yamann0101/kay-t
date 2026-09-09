@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, interactive-widget=resizes-content" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,9 +14,9 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=52" />
-  <link rel="stylesheet" href="/css/app.css?v=52" />
-  <link rel="stylesheet" href="/css/login.css?v=52" />
+  <link rel="stylesheet" href="/css/tokens.css?v=53" />
+  <link rel="stylesheet" href="/css/app.css?v=53" />
+  <link rel="stylesheet" href="/css/login.css?v=53" />
   <script>
     try {
       var __v = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view");
@@ -55,7 +55,7 @@
         <button type="button" class="profile-chip" id="openProfile" aria-label="Profil">S</button>
       </div>
     </header>
-    <div class="offline-banner" id="offlineBanner" role="status"></div>
+    <div class="server-banner" id="serverBanner" role="status"></div>
     <div id="matchBanner" class="match-banner hidden" role="alert" aria-live="assertive"></div>
     <div id="ptrBar" class="ptr-bar" aria-hidden="true">
       <div class="ptr-track"><div class="ptr-spinner"></div></div>
@@ -500,35 +500,48 @@
     </section>
 
     <section class="view" id="view-settings">
-      <div class="page-pad">
+      <div class="page-pad settings-pad">
         <h2 class="page-title">Ayarlar</h2>
-        <div class="list-card">
-          <div class="item-row"><b>Bildirimler</b><span>Kilit ekranı ve sesli bildirim için izin verin.</span>
-            <button type="button" class="btn-gold" id="enableNotifBtn" style="margin-top:8px">Bildirim iznini aç</button>
+        <div class="list-card settings-card">
+          <div class="settings-row">
+            <div>
+              <b>Bildirimler</b>
+              <span>Kilit ekranı ve sesli bildirim için izin verin.</span>
+            </div>
+            <button type="button" class="btn-gold" id="enableNotifBtn">Bildirim iznini aç</button>
           </div>
-          <div class="item-row"><b>Tema</b><span>S-360 koyu / altın arayüz.</span></div>
+          <div class="settings-row">
+            <div>
+              <b>Tema</b>
+              <span>S-360 koyu / altın arayüz.</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
     <section class="view" id="view-profile">
-      <div class="page-pad">
+      <div class="page-pad profile-pad">
         <div class="profile-hero">
           <div class="profile-avatar" id="profileAvatar">S</div>
           <h2 class="page-title" style="margin:0" id="profileName">—</h2>
           <span id="profileRole" style="color:#aaa;font-size:13px">—</span>
           <span id="profileTitle" style="display:block;margin-top:4px;color:var(--gold-2);font-size:12px;font-weight:700"></span>
         </div>
-        <div class="list-card bio-card" id="bioCard" style="padding:14px;margin-bottom:12px">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div class="list-card bio-card" id="bioCard">
+          <div class="bio-head">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gold-2)" stroke-width="1.7">
               <path d="M12 11a3 3 0 0 0-3 3v6"/><path d="M9 8a3 3 0 1 1 6 0"/><path d="M15 11v2"/><path d="M6 12a6 6 0 0 1 12 0"/><path d="M18 12v3"/><path d="M7 16v-1"/>
             </svg>
-            <b style="color:var(--gold-2)">Parmak İzi Girişi</b>
+            <b>Parmak İzi / Desen Girişi</b>
           </div>
-          <p id="bioStatus" style="margin:0 0 10px;font-size:12px;color:#aaa;line-height:1.4">—</p>
-          <div style="display:grid;gap:8px">
-            <button type="button" class="btn-gold" id="bioAddBtn">Parmak İzi Ekle</button>
-            <button type="button" class="vis-act" id="bioRemoveBtn" style="border-color:rgba(239,68,68,.45);color:#f87171">Parmak İzini Sil</button>
+          <p id="bioStatus">—</p>
+          <label class="bio-pass-wrap" id="bioPassWrap">
+            <span>Şifrenizi girin (cihazda saklanır)</span>
+            <input type="password" id="bioPassword" autocomplete="current-password" placeholder="Hesap şifresi" />
+          </label>
+          <div class="bio-actions">
+            <button type="button" class="btn-gold" id="bioAddBtn">Parmak İzi / Desen Ekle</button>
+            <button type="button" class="vis-act bio-del" id="bioRemoveBtn">Parmak İzini Sil</button>
           </div>
         </div>
         <form class="list-card profile-grid" id="profileForm" style="padding:12px">
@@ -807,10 +820,14 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=52"></script>
-  <script src="/js/api.js?v=52"></script>
-  <script src="/js/webauthn-client.js?v=52"></script>
-  <script src="/js/app.js?v=52"></script>
-  <script src="/js/pwa.js?v=52"></script>
+  <script src="/js/haptic.js?v=53"></script>
+  <script src="/js/api.js?v=53"></script>
+  <script src="/js/webauthn-client.js?v=53"></script>
+  <script src="/js/app.js?v=53"></script>
+  <script src="/js/pwa.js?v=53"></script>
+  <script>
+    document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });
+  </script>
 </body>
 </html>
