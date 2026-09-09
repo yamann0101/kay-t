@@ -16,6 +16,12 @@ import {
   detachVisitFromPerson,
 } from "../lib/visitors.js";
 import { sendPushAll } from "../lib/notify.js";
+import {
+  buildBackupPayload,
+  createAutoBackup,
+  listAutoBackups,
+  readAutoBackup,
+} from "../lib/autoBackup.js";
 
 function sendSheet(res, filename, sheetName, headers, rows, format) {
   if (format === "csv") {
@@ -347,6 +353,47 @@ router.delete("/contacts/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+router.get("/contact-sections", async (_req, res) => {
+  const { rows } = await query(`SELECT * FROM contact_sections ORDER BY sort_order, title`);
+  res.json({
+    items: rows.map((r) => ({
+      ...r,
+      units: Array.isArray(r.units) ? r.units : (() => { try { return JSON.parse(r.units || "[]"); } catch { return []; } })(),
+    })),
+  });
+});
+
+router.post("/contact-sections", async (req, res) => {
+  const title = String(req.body?.title || "").trim();
+  if (!title) return res.status(400).json({ error: "Bölüm adı gerekli" });
+  const key =
+    String(req.body?.key || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-") || `sec-${Date.now()}`;
+  const unit = String(req.body?.unit || title).trim();
+  const tab = String(req.body?.tab || "diger").trim() || "diger";
+  const sub = String(req.body?.sub || "").trim();
+  const { rows: n } = await query(`SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM contact_sections`);
+  try {
+    const { rows } = await query(
+      `INSERT INTO contact_sections (key, title, sub, tab, units, sort_order)
+       VALUES ($1,$2,$3,$4,$5::jsonb,$6) RETURNING *`,
+      [key, title, sub, tab, JSON.stringify([unit]), n[0].n]
+    );
+    await writeLog(req, "Rehber bölümü", title);
+    res.json({ item: rows[0] });
+  } catch {
+    return res.status(409).json({ error: "Bu bölüm zaten var" });
+  }
+});
+
+router.delete("/contact-sections/:id", async (req, res) => {
+  const { rows } = await query(`DELETE FROM contact_sections WHERE id=$1 RETURNING title`, [req.params.id]);
+  await writeLog(req, "Rehber bölümü silindi", rows[0]?.title || req.params.id);
+  res.json({ ok: true });
+});
+
 router.get("/logs", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 200, 1000);
   const { rows } = await query(
@@ -360,35 +407,32 @@ router.get("/logs", async (req, res) => {
 });
 
 router.get("/backup", async (_req, res) => {
-  const tables = [
-    "users",
-    "keys",
-    "key_sections",
-    "key_logs",
-    "visitors",
-    "visitor_people",
-    "movements",
-    "announcements",
-    "patrols",
-    "shipments",
-    "meetings",
-    "activity_logs",
-    "visitor_alerts",
-    "notifications",
-    "contacts",
-    "settings",
-  ];
-  const data = { exported_at: new Date().toISOString(), tables: {} };
-  for (const t of tables) {
-    const { rows } = await query(`SELECT * FROM ${t}`);
-    if (t === "users") {
-      data.tables[t] = rows.map(({ password_hash, ...rest }) => rest);
-    } else {
-      data.tables[t] = rows;
-    }
-  }
+  const data = await buildBackupPayload();
   res.setHeader("Content-Disposition", `attachment; filename="s360-yedek-${Date.now()}.json"`);
   res.json(data);
+});
+
+router.get("/backups", async (_req, res) => {
+  res.json({ items: listAutoBackups() });
+});
+
+router.post("/backups/run", async (req, res) => {
+  const r = await createAutoBackup("manual");
+  await writeLog(req, "Otomatik yedek", r.file);
+  res.json({ ok: true, ...r, items: listAutoBackups() });
+});
+
+router.post("/backups/restore", async (req, res) => {
+  const name = String(req.body?.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Yedek seçin" });
+  try {
+    const data = readAutoBackup(name);
+    req.body = data;
+  } catch (err) {
+    return res.status(404).json({ error: err.message || "Yedek yok" });
+  }
+  // aynı restore akışı
+  return restoreFromTables(req, res);
 });
 
 router.post("/purge", async (req, res) => {
@@ -567,7 +611,9 @@ router.delete("/visitors/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post("/backup/restore", async (req, res) => {
+router.post("/backup/restore", async (req, res) => restoreFromTables(req, res));
+
+async function restoreFromTables(req, res) {
   const tables = req.body?.tables;
   if (!tables || typeof tables !== "object") {
     return res.status(400).json({ error: "Geçersiz yedek dosyası" });
@@ -586,10 +632,17 @@ router.post("/backup/restore", async (req, res) => {
     ["shipments", "DELETE FROM shipments"],
     ["meetings", "DELETE FROM meetings"],
     ["contacts", "DELETE FROM contacts"],
+    ["contact_sections", "DELETE FROM contact_sections"],
     ["keys", "DELETE FROM keys"],
     ["key_sections", "DELETE FROM key_sections"],
   ];
-  for (const [, sql] of order) await query(sql);
+  for (const [, sql] of order) {
+    try {
+      await query(sql);
+    } catch {
+      /* tablo yoksa geç */
+    }
+  }
 
   async function insertRows(table, rows, cols) {
     if (!Array.isArray(rows) || !rows.length) return 0;
@@ -612,6 +665,9 @@ router.post("/backup/restore", async (req, res) => {
   }
 
   const restored = {};
+  restored.contact_sections = await insertRows("contact_sections", tables.contact_sections, [
+    "id", "key", "title", "sub", "tab", "units", "sort_order", "created_at",
+  ]);
   restored.key_sections = await insertRows("key_sections", tables.key_sections, [
     "id", "name", "sort_order", "created_at",
   ]);
@@ -636,7 +692,7 @@ router.post("/backup/restore", async (req, res) => {
   ]);
   await backfillVisitorPeople();
   restored.movements = await insertRows("movements", tables.movements, [
-    "id", "direction", "person_name", "category", "plate", "created_at",
+    "id", "direction", "person_name", "category", "plate", "created_at", "visitor_id",
   ]);
   restored.announcements = await insertRows("announcements", tables.announcements, [
     "id", "title", "body", "created_at",
@@ -647,6 +703,56 @@ router.post("/backup/restore", async (req, res) => {
   restored.patrols = await insertRows("patrols", tables.patrols, [
     "id", "name", "checkpoint", "status", "created_at",
   ]);
+  // Kullanıcı profil alanlarını geri yükle (şifreye dokunma)
+  restored.users = 0;
+  if (Array.isArray(tables.users)) {
+    for (const u of tables.users) {
+      if (!u?.id) continue;
+      try {
+        await query(
+          `UPDATE users SET
+             full_name = COALESCE($2, full_name),
+             phone = COALESCE($3, phone),
+             gender = COALESCE($4, gender),
+             armed = COALESCE($5, armed),
+             id_no = COALESCE($6, id_no),
+             photo_url = COALESCE($7, photo_url),
+             shoe_size = COALESCE($8, shoe_size),
+             pants_size = COALESCE($9, pants_size),
+             shirt_size = COALESCE($10, shirt_size),
+             coat_size = COALESCE($11, coat_size),
+             sweater_size = COALESCE($12, sweater_size),
+             start_date = COALESCE($13::date, start_date),
+             blood_type = COALESCE($14, blood_type),
+             marital_status = COALESCE($15, marital_status),
+             title_id = COALESCE($16::uuid, title_id),
+             updated_at = NOW()
+           WHERE id = $1`,
+          [
+            u.id,
+            u.full_name || null,
+            u.phone || null,
+            u.gender || null,
+            u.armed || null,
+            u.id_no || null,
+            u.photo_url || null,
+            u.shoe_size || null,
+            u.pants_size || null,
+            u.shirt_size || null,
+            u.coat_size || null,
+            u.sweater_size || null,
+            u.start_date || null,
+            u.blood_type || null,
+            u.marital_status || null,
+            u.title_id || null,
+          ]
+        );
+        restored.users += 1;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
   restored.settings = 0;
   if (Array.isArray(tables.settings)) {
     for (const s of tables.settings) {
@@ -661,7 +767,7 @@ router.post("/backup/restore", async (req, res) => {
   }
   await writeLog(req, "Yedek yüklendi", `ziyaretçi ${restored.visitors}`);
   res.json({ ok: true, restored });
-});
+}
 
 router.post("/notify", async (req, res) => {
   const { title, body } = req.body || {};

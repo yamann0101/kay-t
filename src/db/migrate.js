@@ -6,7 +6,7 @@ import { backfillVisitorPeople } from "../lib/visitors.js";
 import { DEFAULT_COPY, DEFAULT_SHIFT } from "../lib/appSettings.js";
 
 /** Şema sürümü: her yapısal değişiklikte artır. Seed tekrarlanmaz. */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -464,6 +464,37 @@ export async function migrate() {
     await query(
       `INSERT INTO settings (key, value) VALUES ('seed_cleanup_v10', '1')
        ON CONFLICT (key) DO UPDATE SET value = '1'`
+    );
+  }
+
+  await exec(`
+    CREATE TABLE IF NOT EXISTS contact_sections (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      key TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      sub TEXT,
+      tab TEXT NOT NULL DEFAULT 'diger',
+      units JSONB NOT NULL DEFAULT '[]',
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  const contactSectionSeed = [
+    ["yonetim", "Yönetim Kadrosu", "Proje yönetimi ve idari birimler", "yonetim", ["Yönetim", "Merkez", "İdari"], 1],
+    ["guvenlik", "Güvenlik Birimi", "Vardiya amirleri ve güvenlik personeli", "yonetim", ["Saha", "Güvenlik"], 2],
+    ["teknik", "Teknik Servis", "Bakım - Onarım - Teknik destek", "teknik", ["Teknik"], 3],
+    ["temizlik", "Temizlik Ekibi", "Temizlik sorumluları", "diger", ["Temizlik"], 4],
+    ["taseron", "Taşeron Firmalar", "Sahada görev yapan firmalar", "diger", ["Taşeron"], 5],
+    ["tedarik", "Tedarikçi / Sevkiyat", "Malzeme ve lojistik firmalar", "diger", ["Tedarikçi"], 6],
+    ["bilgi", "Önemli Bilgiler", "Talimatlar, kurallar, formlar", "diger", ["Bilgi"], 7],
+    ["acil", "Acil Durum Numaraları", "Hızlı arama için önemli numaralar", "acil", ["Acil"], 8],
+  ];
+  for (const [key, title, sub, tab, units, order] of contactSectionSeed) {
+    await query(
+      `INSERT INTO contact_sections (key, title, sub, tab, units, sort_order)
+       VALUES ($1,$2,$3,$4,$5::jsonb,$6)
+       ON CONFLICT (key) DO NOTHING`,
+      [key, title, sub, tab, JSON.stringify(units), order]
     );
   }
 

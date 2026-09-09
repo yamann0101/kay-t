@@ -366,6 +366,69 @@ router.get("/visitors/next-no", async (_req, res) => {
   res.json({ record_no: `ZK-${String(n).padStart(4, "0")}` });
 });
 
+router.get("/visitors/inside-companies", async (_req, res) => {
+  const { rows } = await query(
+    `SELECT id, company FROM visitors
+     WHERE COALESCE(exited,false)=false AND exited_at IS NULL`
+  );
+  const map = new Map();
+  for (const r of rows) {
+    const label = String(r.company || "").trim() || "FİRMASIZ";
+    const key = foldSearch(label) || "FIRMASIZ";
+    const cur = map.get(key) || { company: label.toLocaleUpperCase("tr-TR"), n: 0, key };
+    cur.n += 1;
+    map.set(key, cur);
+  }
+  const items = [...map.values()].sort((a, b) => b.n - a.n || a.company.localeCompare(b.company, "tr"));
+  res.json({ items });
+});
+
+router.get("/visitors/inside", async (_req, res) => {
+  const { rows } = await query(
+    `SELECT id, full_name, first_name, last_name, company, plate, visit_type, entry_time, visit_date, created_at, entered_at
+     FROM visitors
+     WHERE COALESCE(exited,false)=false AND exited_at IS NULL
+     ORDER BY COALESCE(entered_at, created_at) DESC
+     LIMIT 300`
+  );
+  res.json({ items: rows });
+});
+
+router.post("/visitors/bulk-exit", async (req, res) => {
+  if (!canWriteApp(req.user)) return res.status(403).json({ error: "İzleyici modunda işlem yapılamaz" });
+  const companyRaw = String(req.body?.company || "").trim();
+  if (!companyRaw) return res.status(400).json({ error: "Firma seçin" });
+  const companyFold = foldSearch(companyRaw === "FIRMASIZ" || companyRaw === "FİRMASIZ" ? "FIRMASIZ" : companyRaw);
+  const { rows: inside } = await query(
+    `SELECT * FROM visitors
+     WHERE COALESCE(exited,false)=false AND exited_at IS NULL`
+  );
+  const matched = inside.filter((v) => {
+    const co = foldSearch(v.company || "") || "FIRMASIZ";
+    return co === companyFold || namesMatch(co, companyFold);
+  });
+  const out = [];
+  for (const v of matched) {
+    const { rows } = await query(
+      `UPDATE visitors SET exited_at = NOW(), exited = TRUE,
+         exit_time = COALESCE(exit_time, to_char(NOW() AT TIME ZONE 'Europe/Istanbul', 'HH24:MI'))
+       WHERE id = $1 AND COALESCE(exited,false)=false AND exited_at IS NULL
+       RETURNING *`,
+      [v.id]
+    );
+    if (rows[0]) {
+      await query(
+        `INSERT INTO movements (direction, person_name, category, plate, created_by, visitor_id)
+         VALUES ('cikis', $1, $2, $3, $4, $5)`,
+        [rows[0].full_name, rows[0].category, rows[0].plate, req.user.id, rows[0].id]
+      );
+      out.push(rows[0]);
+    }
+  }
+  await writeLog(req, "Toplu çıkış", `${companyRaw} · ${out.length} kişi`);
+  res.json({ count: out.length, items: out });
+});
+
 router.get("/visitors/:id", async (req, res) => {
   const fields = await getVisitorFields();
   const { rows } = await query(`SELECT * FROM visitors WHERE id = $1`, [req.params.id]);
@@ -427,58 +490,6 @@ router.post("/visitors/:id/exit", async (req, res) => {
   );
   await writeLog(req, "Ziyaretçi çıkış", `${rows[0].full_name}`);
   res.json({ item: rows[0] });
-});
-
-router.post("/visitors/bulk-exit", async (req, res) => {
-  if (!canWriteApp(req.user)) return res.status(403).json({ error: "İzleyici modunda işlem yapılamaz" });
-  const companyRaw = String(req.body?.company || "").trim();
-  if (!companyRaw) return res.status(400).json({ error: "Firma seçin" });
-  const companyFold = foldSearch(companyRaw === "FIRMASIZ" || companyRaw === "FİRMASIZ" ? "FIRMASIZ" : companyRaw);
-  const { rows: inside } = await query(
-    `SELECT * FROM visitors
-     WHERE COALESCE(exited,false)=false AND exited_at IS NULL`
-  );
-  const matched = inside.filter((v) => {
-    const co = foldSearch(v.company || "") || "FIRMASIZ";
-    return co === companyFold || namesMatch(co, companyFold);
-  });
-  const out = [];
-  for (const v of matched) {
-    const { rows } = await query(
-      `UPDATE visitors SET exited_at = NOW(), exited = TRUE,
-         exit_time = COALESCE(exit_time, to_char(NOW() AT TIME ZONE 'Europe/Istanbul', 'HH24:MI'))
-       WHERE id = $1 AND COALESCE(exited,false)=false AND exited_at IS NULL
-       RETURNING *`,
-      [v.id]
-    );
-    if (rows[0]) {
-      await query(
-        `INSERT INTO movements (direction, person_name, category, plate, created_by, visitor_id)
-         VALUES ('cikis', $1, $2, $3, $4, $5)`,
-        [rows[0].full_name, rows[0].category, rows[0].plate, req.user.id, rows[0].id]
-      );
-      out.push(rows[0]);
-    }
-  }
-  await writeLog(req, "Toplu çıkış", `${companyRaw} · ${out.length} kişi`);
-  res.json({ count: out.length, items: out });
-});
-
-router.get("/visitors/inside-companies", async (_req, res) => {
-  const { rows } = await query(
-    `SELECT id, company FROM visitors
-     WHERE COALESCE(exited,false)=false AND exited_at IS NULL`
-  );
-  const map = new Map();
-  for (const r of rows) {
-    const label = String(r.company || "").trim() || "FİRMASIZ";
-    const key = foldSearch(label) || "FIRMASIZ";
-    const cur = map.get(key) || { company: label.toLocaleUpperCase("tr-TR"), n: 0, key };
-    cur.n += 1;
-    map.set(key, cur);
-  }
-  const items = [...map.values()].sort((a, b) => b.n - a.n || a.company.localeCompare(b.company, "tr"));
-  res.json({ items });
 });
 
 router.get("/alerts/match", async (req, res) => {
@@ -833,6 +844,28 @@ router.get("/announcements", async (_req, res) => {
 router.get("/contacts", async (_req, res) => {
   const { rows } = await query(`SELECT * FROM contacts ORDER BY name`);
   res.json({ items: rows });
+});
+
+router.get("/contact-sections", async (_req, res) => {
+  try {
+    const { rows } = await query(`SELECT * FROM contact_sections ORDER BY sort_order, title`);
+    res.json({
+      items: rows.map((r) => ({
+        ...r,
+        units: Array.isArray(r.units)
+          ? r.units
+          : (() => {
+              try {
+                return JSON.parse(r.units || "[]");
+              } catch {
+                return [];
+              }
+            })(),
+      })),
+    });
+  } catch {
+    res.json({ items: [] });
+  }
 });
 
 router.post("/contacts", async (req, res) => {

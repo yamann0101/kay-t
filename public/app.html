@@ -14,9 +14,9 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=58" />
-  <link rel="stylesheet" href="/css/app.css?v=58" />
-  <link rel="stylesheet" href="/css/login.css?v=58" />
+  <link rel="stylesheet" href="/css/tokens.css?v=59" />
+  <link rel="stylesheet" href="/css/app.css?v=59" />
+  <link rel="stylesheet" href="/css/login.css?v=59" />
   <script>
     try {
       var __v = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view");
@@ -103,7 +103,10 @@
         <div class="section-h">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
           <h3>Son Hareketler</h3>
-          <button data-view="visitors">Tümünü Gör &gt;</button>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button type="button" class="vis-act write-only" id="homeInsideBtn" data-view="inside">İçeridekiler</button>
+            <button data-view="visitors">Tümünü Gör &gt;</button>
+          </div>
         </div>
         <div class="activity" id="moves"></div>
       </div>
@@ -283,6 +286,22 @@
           <button type="button" class="vis-act" data-view="home">Geri</button>
         </div>
         <div id="bulkExitList" class="bulk-list"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-inside">
+      <div class="page-pad">
+        <div class="page-title-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+          <div>
+            <h2 class="page-title" style="margin:0">İçeridekiler</h2>
+            <p style="margin:4px 0 0;font-size:12px;color:#999">Hızlı çıkış · içeride olan ziyaretçiler</p>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="vis-act write-only" data-view="bulk-exit">Toplu</button>
+            <button type="button" class="vis-act" data-view="home">Geri</button>
+          </div>
+        </div>
+        <div id="insideList" class="bulk-list"></div>
       </div>
     </section>
 
@@ -559,8 +578,9 @@
           </div>
         </div>
         <form class="list-card profile-grid" id="profileForm" style="padding:12px">
-          <label>Ad Soyad<input name="full_name" id="pfName" /></label>
-          <label>Kimlik No<input name="id_no" id="pfId" /></label>
+          <label>Ad Soyad<input name="full_name" id="pfName" autocomplete="name" /></label>
+          <label>Telefon<input name="phone" id="pfPhone" inputmode="tel" autocomplete="tel" /></label>
+          <label>Kimlik No<input name="id_no" id="pfId" autocomplete="off" /></label>
           <label>Cinsiyet
             <select name="gender" id="pfGender">
               <option value="">—</option>
@@ -841,11 +861,11 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=58"></script>
-  <script src="/js/api.js?v=58"></script>
-  <script src="/js/webauthn-client.js?v=58"></script>
-  <script src="/js/app.js?v=58"></script>
-  <script src="/js/pwa.js?v=58"></script>
+  <script src="/js/haptic.js?v=59"></script>
+  <script src="/js/api.js?v=59"></script>
+  <script src="/js/webauthn-client.js?v=59"></script>
+  <script src="/js/app.js?v=59"></script>
+  <script src="/js/pwa.js?v=59"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });

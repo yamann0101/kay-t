@@ -12,6 +12,7 @@ import authRoutes from "./routes/auth.js";
 import appRoutes from "./routes/app.js";
 import adminRoutes from "./routes/admin.js";
 import { startNotifier } from "./lib/notify.js";
+import { startWeeklyBackupScheduler } from "./lib/autoBackup.js";
 
 const app = express();
 const publicDir = path.resolve(process.cwd(), "public");
@@ -103,6 +104,7 @@ async function start() {
   app.listen(config.port, "0.0.0.0", () => {
     console.log(`  Çalışıyor →  http://localhost:${config.port}\n`);
     startNotifier();
+    startWeeklyBackupScheduler();
   });
 }
 

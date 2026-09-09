@@ -33,8 +33,12 @@ document.querySelectorAll(".aside nav button").forEach((b) => {
       loadSections();
       loadKeys();
     }
-    if (b.dataset.view === "contacts") loadContacts();
+    if (b.dataset.view === "contacts") {
+      loadContacts();
+      loadContactSections();
+    }
     if (b.dataset.view === "logs") loadLogs();
+    if (b.dataset.view === "backup") loadAutoBackups();
     if (b.dataset.view === "announce") loadAnn();
     if (b.dataset.view === "settings") {
       loadSettings();
@@ -249,6 +253,56 @@ document.getElementById("userForm").onsubmit = async (e) => {
     toast(err.message);
   }
 };
+
+async function loadContactSections() {
+  const { items } = await api("/api/admin/contact-sections");
+  const sel = document.getElementById("contactUnitSelect");
+  if (sel) {
+    const cur = sel.value;
+    const units = [];
+    for (const s of items || []) {
+      for (const u of s.units || []) if (u && !units.includes(u)) units.push(u);
+    }
+    sel.innerHTML =
+      `<option value="">Birim / bölüm</option>` +
+      units.map((u) => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
+    if (cur) sel.value = cur;
+  }
+  const box = document.getElementById("contactSectionRows");
+  if (!box) return;
+  box.innerHTML = (items || []).length
+    ? items
+        .map(
+          (s) => `<div class="section-item">
+        <b>${esc(s.title)}</b>
+        <span class="muted">${esc((s.units || []).join(", "))}</span>
+        <button class="btn danger small" type="button" data-del-csec="${s.id}">Sil</button>
+      </div>`
+        )
+        .join("")
+    : `<p class="muted">Bölüm yok</p>`;
+  box.querySelectorAll("[data-del-csec]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Rehber bölümü silinsin mi?")) return;
+      await api(`/api/admin/contact-sections/${b.dataset.delCsec}`, { method: "DELETE" });
+      toast("Bölüm silindi");
+      loadContactSections();
+    };
+  });
+}
+
+document.getElementById("contactSectionForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    await api("/api/admin/contact-sections", { method: "POST", body });
+    e.target.reset();
+    toast("Bölüm eklendi");
+    loadContactSections();
+  } catch (err) {
+    toast(err.message || "Eklenemedi");
+  }
+});
 
 async function loadContacts() {
   const { items } = await api("/api/admin/contacts");
@@ -502,6 +556,50 @@ bindFile("importVisitorsBtn", "importVisitorsFile", async (file) => {
 document.getElementById("downloadBackup").onclick = async () => {
   await downloadUrl("/api/admin/backup", `s360-yedek-${Date.now()}.json`);
 };
+
+async function loadAutoBackups() {
+  const box = document.getElementById("autoBackupList");
+  if (!box) return;
+  try {
+    const { items } = await api("/api/admin/backups");
+    box.innerHTML = (items || []).length
+      ? items
+          .map(
+            (b) => `<div class="section-item">
+          <div><b>${esc(b.name)}</b><br/><span class="muted">${esc(b.mtime || "")}</span></div>
+          <button class="btn gold small" type="button" data-restore-auto="${esc(b.name)}">Geri yükle</button>
+        </div>`
+          )
+          .join("")
+      : `<p class="muted">Henüz otomatik yedek yok</p>`;
+    box.querySelectorAll("[data-restore-auto]").forEach((btn) => {
+      btn.onclick = async () => {
+        if (!confirm(`${btn.dataset.restoreAuto} yedeği geri yüklensin mi?`)) return;
+        try {
+          const r = await api("/api/admin/backups/restore", {
+            method: "POST",
+            body: { name: btn.dataset.restoreAuto },
+          });
+          toast(`Yedek yüklendi (${r.restored?.visitors || 0} ziyaretçi)`);
+        } catch (err) {
+          toast(err.message || "Yüklenemedi");
+        }
+      };
+    });
+  } catch (err) {
+    box.innerHTML = `<p class="muted">${esc(err.message || "Liste alınamadı")}</p>`;
+  }
+}
+
+document.getElementById("runAutoBackup")?.addEventListener("click", async () => {
+  try {
+    await api("/api/admin/backups/run", { method: "POST", body: {} });
+    toast("Yedek alındı");
+    loadAutoBackups();
+  } catch (err) {
+    toast(err.message || "Yedek alınamadı");
+  }
+});
 
 bindFile("restoreBackupBtn", "restoreBackupFile", async (file) => {
   if (!confirm("Yedek yüklenecek. Ziyaretçi, anahtar ve hareket verileri değişir. Devam?")) return;

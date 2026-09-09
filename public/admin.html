@@ -8,9 +8,9 @@
   <link rel="icon" href="/icons/icon-192.png" />
   <title>S-360 · Yönetici</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=58" />
-  <link rel="stylesheet" href="/css/admin.css?v=58" />
-  <link rel="stylesheet" href="/css/login.css?v=58" />
+  <link rel="stylesheet" href="/css/tokens.css?v=59" />
+  <link rel="stylesheet" href="/css/admin.css?v=59" />
+  <link rel="stylesheet" href="/css/login.css?v=59" />
 </head>
 <body class="admin-body">
   <div class="aside-bg hidden" id="asideBg"></div>
@@ -175,16 +175,35 @@
               </table>
             </div>
           </div>
-          <div class="panel">
-            <div class="panel-h"><h3>Kişi ekle</h3></div>
-            <form class="form-grid" id="contactForm">
-              <input name="name" placeholder="Ad Soyad" required />
-              <input name="title" placeholder="Unvan" />
-              <input name="phone" placeholder="Telefon" required />
-              <input name="unit" placeholder="Birim / bölüm" />
-              <button class="btn gold" type="submit">Ekle</button>
-            </form>
-            <p class="muted pad-note">Örnek kayıtlar az tutulur. Yeni kişileri buradan ekleyin.</p>
+          <div>
+            <div class="panel">
+              <div class="panel-h"><h3>Kişi ekle</h3></div>
+              <form class="form-grid" id="contactForm">
+                <input name="name" placeholder="Ad Soyad" required />
+                <input name="title" placeholder="Unvan" />
+                <input name="phone" placeholder="Telefon" required />
+                <select name="unit" id="contactUnitSelect">
+                  <option value="">Birim / bölüm</option>
+                </select>
+                <button class="btn gold" type="submit">Ekle</button>
+              </form>
+            </div>
+            <div class="panel" style="margin-top:12px">
+              <div class="panel-h"><h3>Rehber bölümleri</h3></div>
+              <form class="form-grid" id="contactSectionForm">
+                <input name="title" placeholder="Bölüm adı (örn. Teknik Servis)" required />
+                <input name="unit" placeholder="Birim etiketi (örn. Teknik)" required />
+                <select name="tab">
+                  <option value="yonetim">Yönetim</option>
+                  <option value="teknik">Teknik</option>
+                  <option value="diger">Diğer</option>
+                  <option value="acil">Acil</option>
+                </select>
+                <button class="btn gold" type="submit">Bölüm ekle</button>
+              </form>
+              <div class="form-grid" id="contactSectionRows"></div>
+              <p class="muted pad-note">Bölümü silmek rehber kişilerini silmez; sadece o klasör kaybolur.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -320,7 +339,10 @@
             <div class="form-grid">
               <p class="muted">Tüm verileri JSON olarak indirin. Kullanıcı şifreleri dahil edilmez.</p>
               <button class="btn gold" id="downloadBackup">JSON yedeği indir</button>
-              <p class="muted">Yedeği geri yükler: ziyaretçi, anahtar, hareket, duyuru, ayar. Kullanıcı hesapları değişmez.</p>
+              <p class="muted">Otomatik yedek: her <b>Cuma 12:00</b> (TR). Son <b>4</b> yedek tutulur.</p>
+              <button class="btn ghost" type="button" id="runAutoBackup">Şimdi yedek al</button>
+              <div id="autoBackupList" class="form-grid" style="padding-top:0"></div>
+              <p class="muted">Dosyadan yedek yükle (ziyaretçi, anahtar, rehber, profil alanları).</p>
               <button class="btn ghost" type="button" id="restoreBackupBtn">JSON yedek yükle</button>
               <input type="file" id="restoreBackupFile" accept=".json,application/json" hidden />
               <p class="muted">Ziyaretçi kayıtlarını Excel sırasıyla indirin veya yükleyin.</p>
@@ -346,9 +368,9 @@
     </main>
   </div>
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=58"></script>
-  <script src="/js/api.js?v=58"></script>
-  <script src="/js/admin.js?v=58"></script>
+  <script src="/js/haptic.js?v=59"></script>
+  <script src="/js/api.js?v=59"></script>
+  <script src="/js/admin.js?v=59"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
   </script>

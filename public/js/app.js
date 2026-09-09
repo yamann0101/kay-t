@@ -156,6 +156,7 @@ function showView(name) {
     }
   }
   if (name === "bulk-exit") loadBulkExitPage();
+  if (name === "inside") loadInsidePage();
   applyRoleUi();
 }
 
@@ -1175,10 +1176,11 @@ function bindAlertMatchLive() {
 }
 
 function bindUppercase(root = document) {
-  const skip = new Set(["notes", "message", "password"]);
-  const skipId = new Set(["visSearch", "keySearch", "dirSearch"]);
+  const skip = new Set(["notes", "message", "password", "phone", "id_no", "full_name"]);
+  const skipId = new Set(["visSearch", "keySearch", "dirSearch", "pfName", "pfPhone", "pfId", "pfShoe", "pfPants", "pfShirt", "pfCoat", "pfSweater", "bioPassword"]);
   (root.querySelectorAll ? root : document).querySelectorAll("input, textarea").forEach((el) => {
-    if (["password", "date", "time", "hidden", "checkbox", "radio"].includes(el.type)) return;
+    if (el.closest("#profileForm") || el.closest("#passwordForm")) return;
+    if (["password", "date", "time", "hidden", "checkbox", "radio", "file", "email", "tel"].includes(el.type)) return;
     if (skip.has(el.name) || skipId.has(el.id)) return;
     if (el.dataset.upperBound) return;
     el.dataset.upperBound = "1";
@@ -1514,10 +1516,61 @@ async function loadBulkExitPage() {
           });
           toast(`${r.count || 0} kişi çıkış yaptı`);
           await loadBulkExitPage();
+          await loadInsidePage().catch(() => {});
           await refreshVisitors().catch(() => {});
           loadHome().catch(() => {});
         } catch (err) {
           toast(err.message || "Toplu çıkış başarısız");
+        }
+      };
+    });
+  } catch (err) {
+    box.innerHTML = `<div class="dir-info"><span>${escHtml(err.message || "Liste alınamadı")}</span></div>`;
+  }
+}
+
+async function loadInsidePage() {
+  const box = document.getElementById("insideList");
+  if (!box) return;
+  box.innerHTML = `<div class="dir-info"><span>Yükleniyor…</span></div>`;
+  try {
+    const { items } = await api("/api/app/visitors/inside");
+    window.__insideList = items || [];
+    if (!items?.length) {
+      box.innerHTML = `<div class="dir-info"><span>İçeride kimse yok</span></div>`;
+      return;
+    }
+    box.innerHTML = items
+      .map(
+        (v, i) => `<div class="bulk-row">
+          <div>
+            <b>${escHtml(v.full_name || `${v.first_name || ""} ${v.last_name || ""}`.trim() || "—")}</b>
+            <small>${escHtml(v.company || "Firmasız")}${v.plate ? ` · ${escHtml(v.plate)}` : ""}${
+              v.entry_time ? ` · ${escHtml(v.entry_time)}` : ""
+            }</small>
+          </div>
+          ${
+            canWrite()
+              ? `<button type="button" class="btn-gold bulk-exit-btn" data-inside-i="${i}">Çıkış</button>`
+              : ""
+          }
+        </div>`
+      )
+      .join("");
+    box.querySelectorAll("[data-inside-i]").forEach((b) => {
+      b.onclick = async (ev) => {
+        ev.preventDefault();
+        if (!canWrite()) return;
+        const v = window.__insideList?.[Number(b.dataset.insideI)];
+        if (!v?.id) return;
+        try {
+          await api(`/api/app/visitors/${v.id}/exit`, { method: "POST" });
+          toast("Çıkış kaydedildi");
+          await loadInsidePage();
+          loadHome().catch(() => {});
+          refreshVisitors().catch(() => {});
+        } catch (err) {
+          toast(err.message || "Çıkış başarısız");
         }
       };
     });
@@ -1707,7 +1760,7 @@ async function openVisitorSheet(id, mode) {
   };
 }
 
-const DIR_GROUPS = [
+const DIR_GROUPS_FALLBACK = [
   { key: "yonetim", tab: "yonetim", title: "Yönetim Kadrosu", sub: "Proje yönetimi ve idari birimler", units: ["Yönetim", "Merkez", "İdari"] },
   { key: "guvenlik", tab: "yonetim", title: "Güvenlik Birimi", sub: "Vardiya amirleri ve güvenlik personeli", units: ["Saha", "Güvenlik"] },
   { key: "teknik", tab: "teknik", title: "Teknik Servis", sub: "Bakım - Onarım - Teknik destek", units: ["Teknik"] },
@@ -1717,6 +1770,7 @@ const DIR_GROUPS = [
   { key: "bilgi", tab: "diger", title: "Önemli Bilgiler", sub: "Talimatlar, kurallar, formlar", units: ["Bilgi"] },
   { key: "acil", tab: "acil", title: "Acil Durum Numaraları", sub: "Hızlı arama için önemli numaralar", units: ["Acil"] },
 ];
+let DIR_GROUPS = DIR_GROUPS_FALLBACK.slice();
 
 const DIR_ICONS = {
   yonetim: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V8l8-4 8 4v13"/><path d="M9 21v-6h6v6"/></svg>`,
@@ -1811,10 +1865,25 @@ function renderDirectory() {
 
 async function loadDirectory() {
   try {
-    const { items } = await api("/api/app/contacts");
+    const [{ items }, sec] = await Promise.all([
+      api("/api/app/contacts"),
+      api("/api/app/contact-sections").catch(() => ({ items: [] })),
+    ]);
     dirPeople = items || [];
+    if (sec.items?.length) {
+      DIR_GROUPS = sec.items.map((s) => ({
+        key: s.key,
+        tab: s.tab || "diger",
+        title: s.title,
+        sub: s.sub || "",
+        units: Array.isArray(s.units) ? s.units : [],
+      }));
+    } else {
+      DIR_GROUPS = DIR_GROUPS_FALLBACK.slice();
+    }
   } catch {
     dirPeople = [];
+    DIR_GROUPS = DIR_GROUPS_FALLBACK.slice();
   }
   dirGroup = null;
   dirTab = "all";
@@ -2932,6 +3001,7 @@ async function boot() {
     const reader = new FileReader();
     reader.onload = () => {
       document.getElementById("pfPhoto").value = String(reader.result || "");
+      window.__profilePhotoDirty = true;
     };
     reader.readAsDataURL(f);
   });
@@ -3005,6 +3075,8 @@ async function loadProfile() {
         .toUpperCase();
     }
     document.getElementById("pfName").value = user.full_name || "";
+    const pfPhone = document.getElementById("pfPhone");
+    if (pfPhone) pfPhone.value = user.phone || "";
     document.getElementById("pfId").value = user.id_no || "";
     document.getElementById("pfGender").value = user.gender || "";
     document.getElementById("pfMarital").value = user.marital_status || "";
@@ -3019,6 +3091,7 @@ async function loadProfile() {
       ? String(user.start_date).slice(0, 10)
       : "";
     document.getElementById("pfPhoto").value = user.photo_url || "";
+    window.__profilePhotoDirty = false;
     updateBioUi(Boolean(user.has_webauthn) || Boolean(readSavedLogin()));
   } catch (err) {
     toast(err.message || "Profil yüklenemedi");
@@ -3105,13 +3178,15 @@ async function saveProfile(e) {
   for (const k of Object.keys(body)) {
     if (body[k] === "" || body[k] == null) delete body[k];
   }
+  if (!window.__profilePhotoDirty) delete body.photo_url;
   if (!body.photo_url) delete body.photo_url;
   try {
     const { user } = await api("/api/app/profile", { method: "PATCH", body });
     window.currentUser = user;
     me = user;
+    cacheSession(user);
     toast("Profil kaydedildi");
-    loadProfile();
+    await loadProfile();
   } catch (err) {
     toast(err.message || "Kaydedilemedi");
   }
