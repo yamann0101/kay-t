@@ -12,7 +12,7 @@ import {
   withPersonStats,
   resolveEntryType,
 } from "../lib/visitors.js";
-import { sendPushAll, notifyVisitorAlerts } from "../lib/notify.js";
+import { sendPushAll, notifyVisitorAlerts, matchVisitorAlerts } from "../lib/notify.js";
 import { parseShift, parseCopy } from "../lib/appSettings.js";
 import { foldSearch, namesMatch, searchBlob, toUpperTr, nextNotifyAt, parseNotifyTime } from "../lib/text.js";
 
@@ -36,7 +36,8 @@ function daysWorked(startDate) {
 function canMutateVisitor(user, row) {
   if (!row) return false;
   if (user.role === "viewer") return false;
-  if (user.role === "admin" || user.role === "supervisor") return true;
+  // Operasyon: güvenlik ve yönetici tüm kayıtları silebilir/düzenleyebilir
+  if (user.role === "admin" || user.role === "supervisor" || user.role === "guard") return true;
   return String(row.created_by || "") === String(user.id);
 }
 
@@ -58,9 +59,13 @@ router.get("/summary", async (_req, res) => {
     monthSev,
     monthGor,
     monthCal,
+    monthKargo,
+    monthYemek,
     todaySev,
     todayGor,
     todayCal,
+    todayKargo,
+    todayYemek,
   ] = await Promise.all([
     query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='giris'`),
     query(`SELECT COUNT(*)::int AS n FROM movements WHERE direction='giris' AND ${SQL_TR_MONTH}`),
@@ -68,9 +73,13 @@ router.get("/summary", async (_req, res) => {
     typeCount("sevkiyat", SQL_TR_MONTH),
     typeCount("gorusme", SQL_TR_MONTH),
     typeCount("calisma", SQL_TR_MONTH),
+    typeCount("kargo", SQL_TR_MONTH),
+    typeCount("yemek", SQL_TR_MONTH),
     typeCount("sevkiyat", SQL_TR_TODAY),
     typeCount("gorusme", SQL_TR_TODAY),
     typeCount("calisma", SQL_TR_TODAY),
+    typeCount("kargo", SQL_TR_TODAY),
+    typeCount("yemek", SQL_TR_TODAY),
   ]);
 
   res.json({
@@ -79,10 +88,14 @@ router.get("/summary", async (_req, res) => {
     month_sevkiyat: monthSev.rows[0].n,
     month_gorusme: monthGor.rows[0].n,
     month_calisma: monthCal.rows[0].n,
+    month_kargo: monthKargo.rows[0].n,
+    month_yemek: monthYemek.rows[0].n,
     giris: todayGiris.rows[0].n,
     sevkiyat: todaySev.rows[0].n,
     gorusme: todayGor.rows[0].n,
     calisma: todayCal.rows[0].n,
+    kargo: todayKargo.rows[0].n,
+    yemek: todayYemek.rows[0].n,
   });
 });
 
@@ -324,6 +337,7 @@ router.get("/visitors/people", async (_req, res) => {
     return {
       ...flat,
       id: r.visit_id || r.person_id,
+      visit_id: r.visit_id || null,
       person_id: r.person_id,
       visit_count: r.visit_count || 0,
       first_visit_at: r.first_visit_at,
@@ -416,37 +430,78 @@ router.post("/visitors/:id/exit", async (req, res) => {
 
 router.post("/visitors/bulk-exit", async (req, res) => {
   if (!canWriteApp(req.user)) return res.status(403).json({ error: "İzleyici modunda işlem yapılamaz" });
-  const company = toUpperTr(req.body?.company || "").trim();
-  if (!company) return res.status(400).json({ error: "Firma seçin" });
-  const { rows } = await query(
-    `UPDATE visitors SET exited_at = NOW(), exited = TRUE,
-       exit_time = COALESCE(exit_time, to_char(NOW() AT TIME ZONE 'Europe/Istanbul', 'HH24:MI'))
-     WHERE UPPER(TRIM(COALESCE(NULLIF(TRIM(company),''),'FİRMASIZ'))) = $1
-       AND entered_at IS NOT NULL
-       AND (exited_at IS NULL AND COALESCE(exited,false)=false)
-     RETURNING *`,
-    [company]
+  const companyRaw = String(req.body?.company || "").trim();
+  if (!companyRaw) return res.status(400).json({ error: "Firma seçin" });
+  const companyFold = foldSearch(companyRaw === "FIRMASIZ" || companyRaw === "FİRMASIZ" ? "FIRMASIZ" : companyRaw);
+  const { rows: inside } = await query(
+    `SELECT * FROM visitors
+     WHERE COALESCE(exited,false)=false AND exited_at IS NULL`
   );
-  for (const v of rows) {
-    await query(
-      `INSERT INTO movements (direction, person_name, category, plate, created_by)
-       VALUES ('cikis', $1, $2, $3, $4)`,
-      [v.full_name, v.category, v.plate, req.user.id]
+  const matched = inside.filter((v) => {
+    const co = foldSearch(v.company || "") || "FIRMASIZ";
+    return co === companyFold || namesMatch(co, companyFold);
+  });
+  const out = [];
+  for (const v of matched) {
+    const { rows } = await query(
+      `UPDATE visitors SET exited_at = NOW(), exited = TRUE,
+         exit_time = COALESCE(exit_time, to_char(NOW() AT TIME ZONE 'Europe/Istanbul', 'HH24:MI'))
+       WHERE id = $1 AND COALESCE(exited,false)=false AND exited_at IS NULL
+       RETURNING *`,
+      [v.id]
     );
+    if (rows[0]) {
+      await query(
+        `INSERT INTO movements (direction, person_name, category, plate, created_by)
+         VALUES ('cikis', $1, $2, $3, $4)`,
+        [rows[0].full_name, rows[0].category, rows[0].plate, req.user.id]
+      );
+      out.push(rows[0]);
+    }
   }
-  await writeLog(req, "Toplu çıkış", `${company} · ${rows.length} kişi`);
-  res.json({ count: rows.length, items: rows });
+  await writeLog(req, "Toplu çıkış", `${companyRaw} · ${out.length} kişi`);
+  res.json({ count: out.length, items: out });
 });
 
 router.get("/visitors/inside-companies", async (_req, res) => {
   const { rows } = await query(
-    `SELECT UPPER(TRIM(COALESCE(NULLIF(TRIM(company),''),'FİRMASIZ'))) AS company, COUNT(*)::int AS n
-     FROM visitors
-     WHERE entered_at IS NOT NULL AND (exited_at IS NULL AND COALESCE(exited,false)=false)
-     GROUP BY 1
-     ORDER BY n DESC, company`
+    `SELECT id, company FROM visitors
+     WHERE COALESCE(exited,false)=false AND exited_at IS NULL`
   );
-  res.json({ items: rows });
+  const map = new Map();
+  for (const r of rows) {
+    const label = String(r.company || "").trim() || "FİRMASIZ";
+    const key = foldSearch(label) || "FIRMASIZ";
+    const cur = map.get(key) || { company: label.toLocaleUpperCase("tr-TR"), n: 0, key };
+    cur.n += 1;
+    map.set(key, cur);
+  }
+  const items = [...map.values()].sort((a, b) => b.n - a.n || a.company.localeCompare(b.company, "tr"));
+  res.json({ items });
+});
+
+router.get("/alerts/match", async (req, res) => {
+  const first = String(req.query.first_name || "").trim();
+  const last = String(req.query.last_name || "").trim();
+  const company = String(req.query.company || "").trim();
+  if (!first && !last && !company) return res.json({ items: [] });
+  const hits = await matchVisitorAlerts({
+    first_name: first,
+    last_name: last,
+    full_name: `${first} ${last}`.trim(),
+    company,
+  });
+  res.json({
+    items: hits.map((a) => ({
+      id: a.id,
+      full_name: a.full_name,
+      first_name: a.first_name,
+      last_name: a.last_name,
+      company: a.company,
+      notes: a.notes,
+      will_enter: a.will_enter,
+    })),
+  });
 });
 
 router.patch("/visitors/:id", async (req, res) => {

@@ -309,10 +309,14 @@ async function loadHome() {
   document.getElementById("st-month-sevkiyat").textContent = sum.month_sevkiyat ?? 0;
   document.getElementById("st-month-gorusme").textContent = sum.month_gorusme ?? 0;
   document.getElementById("st-month-calisma").textContent = sum.month_calisma ?? 0;
+  document.getElementById("st-month-kargo").textContent = sum.month_kargo ?? 0;
+  document.getElementById("st-month-yemek").textContent = sum.month_yemek ?? 0;
   document.getElementById("st-giris").textContent = sum.giris ?? 0;
   document.getElementById("st-sevkiyat").textContent = sum.sevkiyat ?? 0;
   document.getElementById("st-gorusme").textContent = sum.gorusme ?? 0;
   document.getElementById("st-calisma").textContent = sum.calisma ?? 0;
+  document.getElementById("st-kargo").textContent = sum.kargo ?? 0;
+  document.getElementById("st-yemek").textContent = sum.yemek ?? 0;
 
   const items = act.items || [];
   document.getElementById("moves").innerHTML = items.length
@@ -1050,9 +1054,10 @@ function showMatchBanner({ title, body, willEnter }) {
   const box = document.getElementById("matchBanner");
   if (!box) return;
   const enter = willEnter !== false;
+  box.classList.remove("hidden");
   box.className = `match-banner open ${enter ? "yes" : "no"}`;
   box.innerHTML = `
-    <div class="match-banner-ico">${enter ? "●" : "●"}</div>
+    <div class="match-banner-ico">●</div>
     <div class="match-banner-txt">
       <b>${escHtml(title || "Beklenen ziyaretçi")}</b>
       <span>${escHtml(body || "")}</span>
@@ -1066,9 +1071,53 @@ function showMatchBanner({ title, body, willEnter }) {
   window.__matchBannerTimer = setTimeout(() => {
     box.classList.remove("open");
     box.classList.add("hidden");
-  }, 14000);
+  }, 16000);
   if (window.haptic) window.haptic("ok");
   if (typeof playNotifyBeep === "function") playNotifyBeep();
+}
+
+let alertMatchTimer = 0;
+let lastAlertMatchKey = "";
+
+async function checkAlertMatchLive() {
+  const first = String(fieldEl("first_name")?.value || "").trim();
+  const last = String(fieldEl("last_name")?.value || "").trim();
+  const company = String(fieldEl("company")?.value || "").trim();
+  if (first.length < 2 && last.length < 2 && company.length < 2) return;
+  const key = `${foldSearch(first)}|${foldSearch(last)}|${foldSearch(company)}`;
+  if (key === lastAlertMatchKey) return;
+  try {
+    const q = new URLSearchParams({ first_name: first, last_name: last, company });
+    const { items } = await api(`/api/app/alerts/match?${q}`);
+    if (!items?.length) return;
+    lastAlertMatchKey = key;
+    const a = items[0];
+    const willEnter = !(a.will_enter === false || a.will_enter === "false" || a.will_enter === 0);
+    const name = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.full_name || "";
+    showMatchBanner({
+      title: willEnter ? "Haber Ver eşleşti · İçeri GİRECEK" : "Haber Ver eşleşti · İçeri GİRMEYECEK",
+      body: `${name}${a.company ? ` · ${a.company}` : ""}${a.notes ? ` · ${a.notes}` : ""}`,
+      willEnter,
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+function bindAlertMatchLive() {
+  if (window.__alertMatchBound) return;
+  window.__alertMatchBound = true;
+  const kick = () => {
+    clearTimeout(alertMatchTimer);
+    alertMatchTimer = setTimeout(() => checkAlertMatchLive(), 280);
+  };
+  ["first_name", "last_name", "company"].forEach((name) => {
+    document.querySelector(`#visitorForm [name="${name}"]`)?.addEventListener("input", kick);
+  });
+  document.getElementById("regFields")?.addEventListener("input", (e) => {
+    const n = e.target?.name;
+    if (n === "first_name" || n === "last_name" || n === "company") kick();
+  });
 }
 
 function bindUppercase(root = document) {
@@ -1258,11 +1307,12 @@ function renderVisitors() {
           const type = visTypeOf(v);
           const inside = visInside(v);
           const kind = visEntryKind(v);
+          const vid = visitIdOf(v);
           const when = v.last_visit_date || v.visit_date || "";
           const t1 = v.entry_time || (v.created_at ? fmtTime(v.created_at) : "");
           const t2 = v.exit_time || "";
           return `
-          <article class="vis-card ${type}" data-vis-open="${v.id}">
+          <article class="vis-card ${type}" data-vis-open="${vid || ""}">
             <div class="type">${visIcon(type)}</div>
             <div class="who">
               <b>${escHtml(v.full_name || "—")}</b>
@@ -1276,10 +1326,10 @@ function renderVisitors() {
               <span class="vis-when">${escHtml(when)}${t1 ? `<small>${escHtml(t1)}${t2 ? ` - ${escHtml(t2)}` : ""}</small>` : ""}</span>
               <span class="vis-badge ${inside ? "in" : "out"}">${inside ? "İçeride" : "Çıktı"}</span>
               <div class="vis-card-acts">
-                <button type="button" class="vis-copy-mini" data-vis-copy="${v.id}">Kopyala</button>
-                ${canEditVisitor(v) ? `<button type="button" class="edit" data-vis-edit="${v.id}">Düzenle</button>` : ""}
-                ${canEditVisitor(v) ? `<button type="button" class="del" data-vis-del="${v.id}">Sil</button>` : ""}
-                ${inside && canExitVisitor() ? `<button type="button" data-vis-exit="${v.id}">Çıkış</button>` : ""}
+                <button type="button" class="vis-copy-mini" data-vis-copy="${vid || v.id}">Kopyala</button>
+                ${vid && canEditVisitor(v) ? `<button type="button" class="edit" data-vis-edit="${vid}">Düzenle</button>` : ""}
+                ${vid && canEditVisitor(v) ? `<button type="button" class="del" data-vis-del="${vid}">Sil</button>` : ""}
+                ${vid && inside && canExitVisitor() ? `<button type="button" data-vis-exit="${vid}">Çıkış</button>` : ""}
               </div>
               <span class="vis-chev">${chev}</span>
             </div>
@@ -1354,8 +1404,12 @@ function renderVisitors() {
 function canEditVisitor(v) {
   const me = window.currentUser;
   if (!me || me.role === "viewer") return false;
-  if (me.role === "admin" || me.role === "supervisor") return true;
+  if (me.role === "admin" || me.role === "supervisor" || me.role === "guard") return true;
   return String(v.created_by || "") === String(me.id);
+}
+
+function visitIdOf(v) {
+  return v?.visit_id || v?.id || null;
 }
 
 function canExitVisitor() {
@@ -1366,24 +1420,29 @@ async function openBulkExitSheet() {
   try {
     const { items } = await api("/api/app/visitors/inside-companies");
     if (!items?.length) return toast("İçeride kimse yok");
+    window.__bulkCompanies = items;
     openSheet(
       "Toplu Çıkış",
       `<div class="bulk-list">${items
         .map(
-          (c) => `<div class="bulk-row">
+          (c, i) => `<div class="bulk-row">
             <div><b>${escHtml(c.company)}</b><small>${c.n} kişi içeride</small></div>
-            <button type="button" class="btn-gold bulk-exit-btn" data-bulk-co="${escHtml(c.company)}">Çıkış Yap</button>
+            <button type="button" class="btn-gold bulk-exit-btn" data-bulk-i="${i}">Çıkış Yap</button>
           </div>`
         )
         .join("")}</div>`
     );
-    document.querySelectorAll("[data-bulk-co]").forEach((b) => {
-      b.onclick = async () => {
-        if (!confirm(`${b.dataset.bulkCo} firmasındaki herkes çıkış yapsın mı?`)) return;
+    document.querySelectorAll("[data-bulk-i]").forEach((b) => {
+      b.onclick = async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const co = window.__bulkCompanies?.[Number(b.dataset.bulkI)];
+        if (!co) return;
+        if (!confirm(`${co.company} firmasındaki herkes çıkış yapsın mı?`)) return;
         try {
           const r = await api("/api/app/visitors/bulk-exit", {
             method: "POST",
-            body: { company: b.dataset.bulkCo },
+            body: { company: co.company },
           });
           toast(`${r.count || 0} kişi çıkış yaptı`);
           closeSheet();
@@ -1475,13 +1534,25 @@ async function getVisitorById(id) {
     const data = await api(`/api/app/visitors/${id}`);
     return data.item;
   } catch {
-    return visitorCache.find((x) => String(x.id) === String(id)) || null;
+    const local = visitorCache.find(
+      (x) => String(x.id) === String(id) || String(x.visit_id) === String(id)
+    );
+    if (local?.visit_id && String(local.visit_id) !== String(id)) {
+      try {
+        const data = await api(`/api/app/visitors/${local.visit_id}`);
+        return data.item;
+      } catch {
+        /* fallthrough */
+      }
+    }
+    return local || null;
   }
 }
 
 async function openVisitorSheet(id, mode) {
   const v = await getVisitorById(id);
-  if (!v) return;
+  if (!v) return toast("Kayıt bulunamadı");
+  const vid = visitIdOf(v) || id;
   if (mode === "detail") {
     const extra = parseVisitorExtra(v);
     const comps = Array.isArray(extra.companions) ? extra.companions : v.companions || [];
@@ -1515,11 +1586,11 @@ async function openVisitorSheet(id, mode) {
        </div>`
     );
     document.getElementById("sheetCopyBtn").onclick = () => copyVisitor(v);
-    document.getElementById("sheetEditBtn")?.addEventListener("click", () => openVisitorSheet(id, "edit"));
+    document.getElementById("sheetEditBtn")?.addEventListener("click", () => openVisitorSheet(vid, "edit"));
     document.getElementById("sheetDelBtn")?.addEventListener("click", async () => {
       if (!confirm("Kayıt her yerden silinsin mi?")) return;
       try {
-        await api(`/api/app/visitors/${id}`, { method: "DELETE" });
+        await api(`/api/app/visitors/${vid}`, { method: "DELETE" });
         toast("Kayıt silindi");
         closeSheet();
         await refreshVisitors();
@@ -1529,11 +1600,15 @@ async function openVisitorSheet(id, mode) {
       }
     });
     document.getElementById("sheetExitBtn")?.addEventListener("click", async () => {
-      await api(`/api/app/visitors/${id}/exit`, { method: "POST" });
-      toast("Çıkış kaydedildi");
-      closeSheet();
-      await refreshVisitors();
-      loadHome();
+      try {
+        await api(`/api/app/visitors/${vid}/exit`, { method: "POST" });
+        toast("Çıkış kaydedildi");
+        closeSheet();
+        await refreshVisitors();
+        loadHome();
+      } catch (err) {
+        toast(err.message || "Çıkış başarısız");
+      }
     });
     return;
   }
@@ -1551,11 +1626,15 @@ async function openVisitorSheet(id, mode) {
   document.getElementById("visEditForm").onsubmit = async (e) => {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(e.target).entries());
-    await api(`/api/app/visitors/${id}`, { method: "PATCH", body });
-    toast("Kayıt güncellendi");
-    closeSheet();
-    await refreshVisitors();
-    loadHome();
+    try {
+      await api(`/api/app/visitors/${vid}`, { method: "PATCH", body });
+      toast("Kayıt güncellendi");
+      closeSheet();
+      await refreshVisitors();
+      loadHome();
+    } catch (err) {
+      toast(err.message || "Güncellenemedi");
+    }
   };
 }
 
@@ -2252,10 +2331,12 @@ async function openVisitorRegister() {
   document.getElementById("visitorForm").reset();
   const qs = document.getElementById("regQuickSearch");
   if (qs) qs.value = "";
+  lastAlertMatchKey = "";
   renderRegFields();
   fillNowFields();
   setVisitTab("calisma");
   bindRegQuickSearch();
+  bindAlertMatchLive();
   try {
     const n = await api("/api/app/visitors/next-no");
     document.getElementById("regNo").textContent = `#${n.record_no}`;
@@ -2458,12 +2539,47 @@ function confirmRefreshIfDirty() {
 
 function doAppReload() {
   if (!confirmRefreshIfDirty()) return;
+  softRefreshApp();
+}
+
+async function softRefreshApp() {
+  window.softRefreshApp = softRefreshApp;
   try {
     window.showPtrRefreshing?.();
   } catch {
     /* ignore */
   }
-  setTimeout(() => location.reload(), 220);
+  const view = lastMainView || (() => {
+    try {
+      return localStorage.getItem("s360_view") || "home";
+    } catch {
+      return "home";
+    }
+  })();
+  try {
+    await loadSettings().catch(() => {});
+    await loadHome().catch(() => {});
+    await loadNotifs().catch(() => {});
+    if (view === "visitors") await loadVisitors().catch(() => {});
+    else if (view === "keys") await loadKeys().catch(() => {});
+    else if (view === "alerts") await loadAlerts().catch(() => {});
+    else if (view === "directory") await loadDirectory().catch(() => {});
+    else if (view === "patrol") await loadPatrols().catch(() => {});
+    else if (view === "announcements") await loadAnn().catch(() => {});
+    else if (view === "profile") await loadProfile().catch(() => {});
+    else if (view === "reminders") await loadReminders().catch(() => {});
+    if (view && view !== "home" && view !== "chat") {
+      const el = document.getElementById(`view-${view}`);
+      if (el && !el.classList.contains("active")) showView(view);
+    }
+    toast("Yenilendi");
+  } finally {
+    try {
+      window.hidePtr?.();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 document.getElementById("alertForm").addEventListener("submit", async (e) => {

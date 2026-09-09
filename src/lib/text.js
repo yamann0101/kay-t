@@ -51,7 +51,7 @@ export function namesMatch(left, right) {
 function tokenHit(left, right) {
   if (!left || !right) return false;
   if (left === right) return true;
-  if (left.length >= 3 && right.length >= 3 && (left.includes(right) || right.includes(left))) return true;
+  if (left.length >= 2 && right.length >= 2 && (left.includes(right) || right.includes(left))) return true;
   return false;
 }
 

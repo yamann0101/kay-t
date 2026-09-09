@@ -49,12 +49,12 @@ window.hidePtr = function hidePtr() {
   setPtrProgress(0, false);
 };
 
-// Pull-to-refresh: Google tarzı dönen çubuk, ekranın ortasına çekince
+// Pull-to-refresh: ekranın ~%55'ine çekince (kayınca tetiklenmesin)
 (function bindPullRefresh() {
   let startY = 0;
   let pulling = false;
   let armed = false;
-  const threshold = () => Math.max(160, Math.round(window.innerHeight * 0.32));
+  const threshold = () => Math.max(320, Math.round(window.innerHeight * 0.55));
   const getScroll = () =>
     document.querySelector(".app-scroll") || document.scrollingElement || document.documentElement;
 
@@ -78,7 +78,13 @@ window.hidePtr = function hidePtr() {
       return;
     }
     setPtrProgress(1, true);
-    setTimeout(() => location.reload(), 280);
+    if (typeof softRefreshApp === "function") {
+      softRefreshApp().finally(() => setPtrProgress(0, false));
+    } else if (typeof doAppReload === "function") {
+      doAppReload();
+    } else {
+      location.reload();
+    }
   };
 
   document.addEventListener(
@@ -101,15 +107,16 @@ window.hidePtr = function hidePtr() {
     (e) => {
       if (!pulling) return;
       const dy = e.touches[0].clientY - startY;
-      if (dy < 12) {
+      if (dy < 40) {
         setPtrProgress(0, false);
+        armed = false;
         return;
       }
       const t = threshold();
       const p = Math.min(1.15, dy / t);
       armed = p >= 1;
       setPtrProgress(p, false);
-      document.documentElement.classList.toggle("pulling", dy > 24);
+      document.documentElement.classList.toggle("pulling", dy > 48);
     },
     { passive: true }
   );
