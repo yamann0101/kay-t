@@ -433,110 +433,45 @@ async function loadHome() {
   document.getElementById("st-kargo").textContent = sum.kargo ?? 0;
   document.getElementById("st-yemek").textContent = sum.yemek ?? 0;
 
-  const items = act.items || [];
+  const items = (act.items || []).slice(0, 6);
   document.getElementById("moves").innerHTML = items.length
     ? items
         .map((row) => {
           if (row.kind === "key") {
             const who = `${row.holder_first_name || ""} ${row.holder_last_name || ""}`.trim() || row.holder_name || "—";
-            const actLabel = row.action === "iade" ? "İade" : row.action === "iptal" ? "İptal" : "Teslim";
+            const isOut = row.action === "iade";
+            const actLabel = isOut ? "İade" : row.action === "iptal" ? "İptal" : "Teslim";
             return `
-      <div class="move">
-        <div class="t">${fmtTime(row.at || row.taken_at)}</div>
-        ${arrow(row.action === "iade" ? "cikis" : "giris")}
+      <div class="move" data-home-key-edit="${row.id}">
         <div class="av">${personIcon()}</div>
-        <div class="nm">${escHtml(row.code || "Anahtar")} · ${escHtml(actLabel)}<small>${escHtml(who)}${row.holder_company ? ` · ${escHtml(row.holder_company)}` : ""}</small></div>
-        <div class="move-acts">
-          <button type="button" class="move-btn" data-home-key-copy="${row.id}">Kopyala</button>
-          <button type="button" class="move-btn" data-home-key-edit="${row.id}">Düzenle</button>
-          ${
-            row.status === "taken"
-              ? `<button type="button" class="move-btn del" data-home-key-del="${row.id}">Sil</button>`
-              : `<button type="button" class="move-btn del" data-home-key-del="${row.id}">Sil</button>`
-          }
+        <div class="nm">${escHtml(row.code || "Anahtar")}<small>${escHtml(who)}${row.holder_company ? ` · ${escHtml(row.holder_company)}` : ""}</small></div>
+        <div class="move-side">
+          <span class="st ${isOut ? "out" : "in"}">${isOut ? "↙" : "↗"} ${escHtml(actLabel)}</span>
+          <span class="t">${fmtTime(row.at || row.taken_at)}</span>
         </div>
       </div>`;
           }
           const inside = visInside(row);
           return `
-      <div class="move">
-        <div class="t">${row.entry_time || fmtTime(row.created_at || row.at)}</div>
-        ${arrow(inside ? "giris" : "cikis")}
+      <div class="move" data-home-edit="${row.id}">
         <div class="av">${personIcon()}</div>
         <div class="nm">${escHtml(row.full_name || "—")}<small>${escHtml(row.company || row.category || "")}</small></div>
-        <div class="move-acts">
-          <button type="button" class="move-btn" data-home-copy="${row.id}">Kopyala</button>
-          <button type="button" class="move-btn" data-home-edit="${row.id}">Düzenle</button>
-          <button type="button" class="move-btn del" data-home-del="${row.id}">Sil</button>
-          ${
-            inside
-              ? `<button type="button" class="move-btn exit" data-home-exit="${row.id}">Çıkış</button>`
-              : `<span class="act out">Çıktı</span>`
-          }
+        <div class="move-side">
+          <span class="st ${inside ? "in" : "out"}">${inside ? "↗ Giriş" : "↙ Çıkış"}</span>
+          <span class="t">${row.entry_time || fmtTime(row.created_at || row.at)}</span>
         </div>
       </div>`;
         })
         .join("")
-    : `<div class="move"><div class="nm" style="grid-column:1/-1;color:#888;font-weight:500">Henüz hareket yok</div></div>`;
+    : `<div class="move"><div class="nm" style="grid-column:1/-1;color:#7a8aa3;font-weight:600">Henüz hareket yok</div></div>`;
 
-  const visitors = items.filter((x) => x.kind !== "key");
-  const keys = items.filter((x) => x.kind === "key");
-
-  document.querySelectorAll("[data-home-exit]").forEach((b) => {
-    b.onclick = async () => {
-      await api(`/api/app/visitors/${b.dataset.homeExit}/exit`, { method: "POST" });
-      toast("Çıkış kaydedildi");
-      loadHome();
-    };
-  });
-  document.querySelectorAll("[data-home-copy]").forEach((b) => {
-    b.onclick = () => {
-      const v = visitors.find((x) => String(x.id) === String(b.dataset.homeCopy));
-      if (v) copyVisitor(v);
-    };
-  });
   document.querySelectorAll("[data-home-edit]").forEach((b) => {
     b.onclick = () => openVisitorSheet(b.dataset.homeEdit, "edit");
-  });
-  document.querySelectorAll("[data-home-del]").forEach((b) => {
-    b.onclick = async () => {
-      if (!confirm("Bu ziyaret kaydı silinsin mi? (Geçmiş diğer kayıtlar kalır)")) return;
-      try {
-        await api(`/api/app/visitors/${b.dataset.homeDel}`, { method: "DELETE" });
-        toast("Kayıt silindi");
-        loadHome();
-        if (document.getElementById("view-visitors")?.classList.contains("active")) {
-          await refreshVisitors();
-        } else {
-          visitorCache = visitorCache.filter((x) => String(x.id) !== String(b.dataset.homeDel));
-        }
-      } catch (err) {
-        toast(err.message || "Silinemedi");
-      }
-    };
-  });
-  document.querySelectorAll("[data-home-key-copy]").forEach((b) => {
-    b.onclick = () => {
-      const k = keys.find((x) => String(x.id) === String(b.dataset.homeKeyCopy));
-      if (k) copyText(copyKeyText(k));
-    };
   });
   document.querySelectorAll("[data-home-key-edit]").forEach((b) => {
     b.onclick = async () => {
       if (!(keyCache.items || []).length) await loadKeys();
       openKeyEditSheet(b.dataset.homeKeyEdit);
-    };
-  });
-  document.querySelectorAll("[data-home-key-del]").forEach((b) => {
-    b.onclick = async () => {
-      if (!confirm("Anahtar teslim kaydı silinsin mi?")) return;
-      try {
-        await api(`/api/app/keys/${b.dataset.homeKeyDel}/cancel-take`, { method: "POST" });
-        toast("Anahtar kaydı silindi");
-        loadHome();
-      } catch (err) {
-        toast(err.message || "Silinemedi");
-      }
     };
   });
   loadHomeNotes();
