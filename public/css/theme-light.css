@@ -849,13 +849,25 @@ button.btn-gold,
 #view-visitor-form {
   background: linear-gradient(180deg, #f5f8fc 0%, #eef3fa 100%);
 }
+#view-visitor-form.active {
+  display: block !important;
+  overflow: visible !important;
+  height: auto !important;
+  min-height: auto !important;
+  flex: 1 0 auto !important;
+}
 #view-visitor-form .reg-top { display: none !important; }
 #view-visitor-form .reg-pad {
-  padding: 10px 12px calc(18px + var(--tabbar-h, 60px) + var(--fab-rise, 24px));
-  overflow-y: auto;
+  padding: 10px 12px calc(24px + var(--tabbar-h, 60px) + var(--fab-rise, 24px));
+  overflow: visible;
+  flex: none;
+  min-height: auto;
+  height: auto;
+}
+.app-root.reg-mode .app-scroll {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
-  flex: 1;
-  min-height: 0;
 }
 .reg-title-row {
   display: flex;
@@ -1263,10 +1275,9 @@ button.btn-gold,
   color: #fff !important;
   box-shadow: 0 10px 20px rgba(26, 108, 255, 0.3) !important;
   flex-shrink: 0;
-  order: 100;
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
+  order: 2;
+  position: static;
+  z-index: auto;
 }
 .reg-save svg {
   width: 18px;
@@ -1274,6 +1285,8 @@ button.btn-gold,
 }
 #visitorForm.reg-card {
   padding-bottom: 10px !important;
+  overflow: visible;
+  height: auto;
 }
 
 @media (max-width: 380px) {

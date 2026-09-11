@@ -23,22 +23,24 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   /* Navbar flex akışında — sadece FAB taşması için küçük boşluk */
   padding-bottom: 4px;
 }
-.app-root:has(#view-home.active) .app-scroll,
-.app-root:has(#view-visitor-form.active) .app-scroll {
+.app-root:has(#view-home.active) .app-scroll {
   overflow: hidden;
 }
 .app-root:has(#view-visitor-form.active) .app-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 4px;
 }
 
 #view-visitor-form.active {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+  display: block;
+  flex: 1 0 auto;
   min-height: 0;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
+  height: auto;
 }
 
 .app-header {
@@ -1402,6 +1404,12 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   overflow: auto;
   display: flex;
   flex-direction: column;
+}
+#view-visitor-form .reg-pad {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+  height: auto;
 }
 .reg-title-row {
   display: flex;
