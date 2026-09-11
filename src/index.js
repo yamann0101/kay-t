@@ -50,10 +50,12 @@ app.use(
 );
 
 app.get("/api/health", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   res.json({
     ok: true,
     name: "S-360",
     version: "1.0.0",
+    build: "63",
     database: getDbKind() || "disconnected",
     storage: "postgresql",
   });

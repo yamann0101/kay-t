@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
   <meta name="theme-color" content="#1a6cff" />
+  <meta name="s360-build" content="63" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="S-360" />
@@ -14,11 +15,19 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=62" />
-  <link rel="stylesheet" href="/css/app.css?v=62" />
-  <link rel="stylesheet" href="/css/theme-light.css?v=62" />
-  <link rel="stylesheet" href="/css/login.css?v=62" />
+  <link rel="stylesheet" href="/css/tokens.css?v=63" />
+  <link rel="stylesheet" href="/css/app.css?v=63" />
+  <link rel="stylesheet" href="/css/theme-light.css?v=63" />
+  <link rel="stylesheet" href="/css/login.css?v=63" />
   <script>
+    try {
+      if (localStorage.getItem("s360_build") !== "63") {
+        localStorage.setItem("s360_build", "63");
+        if (window.caches) {
+          caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+        }
+      }
+    } catch (e) {}
     try {
       var __v = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view");
       if (__v && __v !== "home" && __v !== "chat") {
@@ -96,24 +105,26 @@
       </div>
 
       <div class="duty-row">
-        <div class="duty-card">
-          <div class="duty-ico clock" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5"/></svg>
+        <div class="duty-cards">
+          <div class="duty-card">
+            <div class="duty-ico clock" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5"/></svg>
+            </div>
+            <div>
+              <span>Görev Süren</span>
+              <b id="dutyElapsed">00:00</b>
+              <small id="dutyDate">—</small>
+            </div>
           </div>
-          <div>
-            <span>Görev Süren</span>
-            <b id="dutyElapsed">00:00</b>
-            <small id="dutyDate">—</small>
-          </div>
-        </div>
-        <div class="duty-card">
-          <div class="duty-ico moon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.5 14.5A7 7 0 0 1 9.5 6.5 7.2 7.2 0 1 0 17.5 14.5z"/></svg>
-          </div>
-          <div>
-            <span>Vardiya Bilgisi</span>
-            <b id="shiftName">Gece Vardiyası</b>
-            <small id="shiftHours">22:00 - 08:00</small>
+          <div class="duty-card">
+            <div class="duty-ico moon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.5 14.5A7 7 0 0 1 9.5 6.5 7.2 7.2 0 1 0 17.5 14.5z"/></svg>
+            </div>
+            <div>
+              <span>Vardiya Bilgisi</span>
+              <b id="shiftName">Gece Vardiyası</b>
+              <small id="shiftHours">22:00 - 08:00</small>
+            </div>
           </div>
         </div>
         <button type="button" class="duty-start write-only" id="homePatrolBtn" data-view="patrol">
@@ -992,11 +1003,11 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=62"></script>
-  <script src="/js/api.js?v=62"></script>
-  <script src="/js/webauthn-client.js?v=62"></script>
-  <script src="/js/app.js?v=62"></script>
-  <script src="/js/pwa.js?v=62"></script>
+  <script src="/js/haptic.js?v=63"></script>
+  <script src="/js/api.js?v=63"></script>
+  <script src="/js/webauthn-client.js?v=63"></script>
+  <script src="/js/app.js?v=63"></script>
+  <script src="/js/pwa.js?v=63"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });

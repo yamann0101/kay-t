@@ -213,11 +213,16 @@
 }
 
 .duty-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-bottom: 12px;
-  align-items: stretch;
+}
+.duty-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  min-width: 0;
 }
 .duty-card {
   background: #fff;
@@ -249,10 +254,13 @@
 }
 .duty-card b {
   display: block;
-  font-size: 17px;
+  font-size: 16px;
   color: #0f1b33;
   line-height: 1.15;
   font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .duty-card small {
   display: block;
@@ -261,18 +269,19 @@
   font-weight: 600;
 }
 .duty-start {
+  width: 100%;
   background: linear-gradient(180deg, #3d8bff, #1a6cff);
   color: #fff;
   border-radius: 16px;
   padding: 12px 14px;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 13px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-width: 100px;
+  gap: 8px;
+  min-height: 48px;
   box-shadow: 0 10px 20px rgba(26, 108, 255, 0.28);
   line-height: 1.15;
   text-align: center;
@@ -288,7 +297,7 @@
 .mock-stats { margin: 0 0 12px; }
 .home-stat-grid {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 .home-stat-grid .stat {
@@ -299,6 +308,7 @@
   box-shadow: 0 4px 14px rgba(20, 60, 120, 0.06);
   position: relative;
   min-height: 96px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -442,7 +452,7 @@
 
 .home-split {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: 1fr;
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -603,15 +613,37 @@
 #view-home .home-moves .move .dir,
 #view-home .home-moves .move .move-acts { display: none !important; }
 
+@media (min-width: 480px) {
+  .duty-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: stretch;
+  }
+  .duty-start {
+    width: auto;
+    min-width: 118px;
+    flex-direction: column;
+    padding: 12px 14px;
+  }
+  .home-stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .home-split { grid-template-columns: 1.15fr 0.85fr; }
+}
 @media (max-width: 420px) {
-  .home-stat-grid { grid-template-columns: 1fr 1fr; }
-  .home-stat .meta b { font-size: 24px !important; }
+  .home-stat .meta b { font-size: 22px !important; }
+  .home-greet { font-size: 22px; }
+  .home-menu-item b { font-size: 12px; }
+  .app-header {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .brand-mini em { font-size: 7px; letter-spacing: 0.08em; }
+  .profile-chip-meta { display: none; }
+  #view-home { padding-left: 10px; padding-right: 10px; }
 }
 @media (max-width: 380px) {
-  .duty-row { grid-template-columns: 1fr 1fr; }
-  .duty-start { grid-column: 1 / -1; flex-direction: row; min-height: 46px; }
-  .home-split { grid-template-columns: 1fr; }
-  .home-greet { font-size: 22px; }
+  .home-tagline { max-width: 160px; font-size: 11px; }
+  .weather-card { min-width: 96px; padding: 8px; }
 }
 
 /* —— Global light surfaces —— */

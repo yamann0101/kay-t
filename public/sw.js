@@ -1,20 +1,6 @@
-const CACHE = "s360-v62";
+/* S-360 SW v63 — HTML/CSS/JS asla kalici onbellekte tutulmaz */
+const CACHE = "s360-v63";
 const PRECACHE = [
-  "/",
-  "/app",
-  "/admin",
-  "/css/tokens.css",
-  "/css/login.css",
-  "/css/app.css",
-  "/css/theme-light.css",
-  "/css/admin.css",
-  "/js/api.js",
-  "/js/login.js",
-  "/js/app.js",
-  "/js/admin.js",
-  "/js/pwa.js",
-  "/js/haptic.js",
-  "/js/webauthn-client.js",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/manifest.json",
@@ -23,17 +9,29 @@ const PRECACHE = [
 let chatOpenFocused = false;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE).catch(() => {})));
-  self.skipWaiting();
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+      const c = await caches.open(CACHE);
+      await c.addAll(PRECACHE).catch(() => {});
+      await self.skipWaiting();
+    })()
+  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      await self.clients.claim();
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of clients) {
+        client.postMessage({ type: "SW_ACTIVATED", cache: CACHE });
+      }
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener("message", (event) => {
@@ -41,7 +39,24 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "CHAT_STATE") {
     chatOpenFocused = Boolean(event.data.open);
   }
+  if (event.data?.type === "CLEAR_CACHES") {
+    event.waitUntil(caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))));
+  }
 });
+
+function isAsset(pathname) {
+  return /\.(?:css|js|html|json|map)$/i.test(pathname) || pathname === "/sw.js";
+}
+
+function isNav(request, url) {
+  return (
+    request.mode === "navigate" ||
+    url.pathname === "/" ||
+    url.pathname === "/app" ||
+    url.pathname === "/admin" ||
+    url.pathname.endsWith(".html")
+  );
+}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
@@ -49,35 +64,22 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/")) return;
 
-  const isNav =
-    request.mode === "navigate" ||
-    url.pathname === "/" ||
-    url.pathname === "/app" ||
-    url.pathname === "/admin" ||
-    url.pathname.endsWith(".html");
-
-  if (isNav) {
+  // Navigasyon + JS/CSS: her zaman agdan; offline olursa eski shell
+  if (isNav(request, url) || isAsset(url.pathname)) {
     event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
-          return res;
-        })
-        .catch(() =>
-          caches
-            .match(request)
-            .then((r) => r || caches.match("/app") || caches.match("/app.html") || caches.match("/"))
-        )
+      fetch(request, { cache: "no-store" }).catch(() =>
+        caches.match(request).then((r) => r || caches.match("/app") || caches.match("/"))
+      )
     );
     return;
   }
 
+  // Ikon vb.: network-first, kisa onbellek
   event.respondWith(
     fetch(request)
       .then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(request, copy));
+        caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
         return res;
       })
       .catch(() => caches.match(request))
@@ -95,7 +97,6 @@ self.addEventListener("push", (event) => {
     (async () => {
       const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const focused = clients.some((c) => c.focused);
-      // Sohbet açıkken sadece sohbet push'unu bastır; diğerleri her zaman üstte görünsün
       if (data.type === "chat" && (chatOpenFocused || focused)) {
         for (const c of clients) {
           c.postMessage({ type: "PUSH_EVENT", ...data, silent: true });

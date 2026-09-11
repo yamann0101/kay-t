@@ -1,9 +1,35 @@
+const APP_BUILD = "63";
+
 if ("serviceWorker" in navigator) {
+  // Eski build kaldiysa tum cache + SW sil, bir kez yenile
+  (async () => {
+    try {
+      const prev = localStorage.getItem("s360_build");
+      if (prev !== APP_BUILD) {
+        localStorage.setItem("s360_build", APP_BUILD);
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+        if (!sessionStorage.getItem("s360_build_boot")) {
+          sessionStorage.setItem("s360_build_boot", APP_BUILD);
+          location.reload();
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  })();
+
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("/sw.js?v=62");
+      const reg = await navigator.serviceWorker.register(`/sw.js?v=${APP_BUILD}`, { updateViaCache: "none" });
       reg.update().catch(() => {});
-      setInterval(() => reg.update().catch(() => {}), 30_000);
+      setInterval(() => reg.update().catch(() => {}), 20_000);
+      if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
       reg.addEventListener("updatefound", () => {
         const sw = reg.installing;
         if (!sw) return;
@@ -13,8 +39,6 @@ if ("serviceWorker" in navigator) {
           }
         });
       });
-      // Eski SW varsa hemen guncelle
-      if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
     } catch {
       /* ignore */
     }
@@ -24,12 +48,13 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (reloading) return;
     reloading = true;
-    try {
-      sessionStorage.setItem("s360_sw_reloaded", String(Date.now()));
-    } catch {
-      /* ignore */
-    }
     location.reload();
+  });
+
+  navigator.serviceWorker.addEventListener("message", (ev) => {
+    if (ev.data?.type === "SW_ACTIVATED" && !sessionStorage.getItem("s360_sw_act")) {
+      sessionStorage.setItem("s360_sw_act", String(Date.now()));
+    }
   });
 }
 

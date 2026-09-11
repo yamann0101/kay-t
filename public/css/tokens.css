@@ -38,8 +38,8 @@ html {
   padding: 0;
   width: 100%;
   height: 100%;
-  height: 100svh;
-  max-height: 100svh;
+  height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: manipulation;
@@ -57,8 +57,8 @@ body {
   max-width: 100%;
   width: 100%;
   height: 100%;
-  height: 100svh;
-  max-height: 100svh;
+  height: 100dvh;
+  max-height: 100dvh;
   min-height: 100%;
   min-height: -webkit-fill-available;
 }
@@ -88,19 +88,20 @@ img { max-width: 100%; display: block; }
   display: flex;
   flex-direction: column;
   height: 100%;
-  height: 100svh;
-  max-height: 100svh;
+  height: 100dvh;
+  max-height: 100dvh;
   min-height: 0;
   min-height: -webkit-fill-available;
 }
 @media (display-mode: standalone), (display-mode: fullscreen) {
   html, body, .phone-shell {
     height: 100%;
-    height: 100svh;
-    max-height: 100svh;
+    height: 100dvh;
+    max-height: 100dvh;
   }
 }
-@media (min-width: 560px) {
+/* Genis ekranda telefon cercevesi; gercek telefonda asla kisitlama yok */
+@media (min-width: 560px) and (hover: hover) and (pointer: fine) {
   html, body { height: 100%; max-height: none; }
   body.framed {
     display: flex;
@@ -111,9 +112,9 @@ img { max-width: 100%; display: block; }
   body.framed .phone-shell {
     max-width: 390px;
     width: 390px;
-    height: 100svh;
-    max-height: 100svh;
-    min-height: 100svh;
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 100dvh;
     box-shadow: 0 0 0 1px rgba(15, 40, 80, 0.08), 0 20px 60px rgba(20, 60, 120, 0.18);
   }
 }
