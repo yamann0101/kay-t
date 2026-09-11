@@ -1001,6 +1001,13 @@ button.btn-gold,
   flex-direction: column;
   gap: 0;
 }
+#visitorForm > .reg-card-h { order: 0; }
+#visitorForm > .reg-cargo-opts { order: 0; }
+#visitorForm > .reg-save {
+  order: 2;
+  margin-top: 14px;
+  margin-bottom: 2px;
+}
 .reg-card-h {
   display: flex;
   gap: 12px;
@@ -1056,6 +1063,7 @@ button.btn-gold,
   display: flex;
   flex-direction: column;
   gap: 10px;
+  order: 1;
 }
 #regFields .reg-grid {
   display: grid;
@@ -1174,8 +1182,8 @@ button.btn-gold,
 }
 
 #view-visitor-form .companion-wrap {
-  order: 80;
-  margin: 2px 0 0;
+  order: -1;
+  margin: 0 0 10px;
 }
 #view-visitor-form .companion-add {
   border: 1px dashed rgba(26, 108, 255, 0.35);
@@ -1243,8 +1251,8 @@ button.btn-gold,
   height: 50px;
   min-height: 50px;
   border-radius: 14px !important;
-  margin-top: 6px;
-  margin-bottom: 4px;
+  margin-top: 12px;
+  margin-bottom: 8px;
   font-weight: 800;
   font-size: 15px;
   display: inline-flex;
@@ -1254,10 +1262,18 @@ button.btn-gold,
   background: linear-gradient(180deg, #3d8bff, #1a6cff) !important;
   color: #fff !important;
   box-shadow: 0 10px 20px rgba(26, 108, 255, 0.3) !important;
+  flex-shrink: 0;
+  order: 100;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
 }
 .reg-save svg {
   width: 18px;
   height: 18px;
+}
+#visitorForm.reg-card {
+  padding-bottom: 10px !important;
 }
 
 @media (max-width: 380px) {
