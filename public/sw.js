@@ -1,5 +1,5 @@
-/* S-360 SW v63 — HTML/CSS/JS asla kalici onbellekte tutulmaz */
-const CACHE = "s360-v63";
+/* S-360 SW v64 — HTML/CSS/JS asla kalici onbellekte tutulmaz */
+const CACHE = "s360-v64";
 const PRECACHE = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",

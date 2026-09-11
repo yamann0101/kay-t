@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
   <meta name="theme-color" content="#1a6cff" />
-  <meta name="s360-build" content="63" />
+  <meta name="s360-build" content="64" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="S-360" />
@@ -15,14 +15,14 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=63" />
-  <link rel="stylesheet" href="/css/app.css?v=63" />
-  <link rel="stylesheet" href="/css/theme-light.css?v=63" />
-  <link rel="stylesheet" href="/css/login.css?v=63" />
+  <link rel="stylesheet" href="/css/tokens.css?v=64" />
+  <link rel="stylesheet" href="/css/app.css?v=64" />
+  <link rel="stylesheet" href="/css/theme-light.css?v=64" />
+  <link rel="stylesheet" href="/css/login.css?v=64" />
   <script>
     try {
-      if (localStorage.getItem("s360_build") !== "63") {
-        localStorage.setItem("s360_build", "63");
+      if (localStorage.getItem("s360_build") !== "64") {
+        localStorage.setItem("s360_build", "64");
         if (window.caches) {
           caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
         }
@@ -261,6 +261,17 @@
             </button>
           </div>
           <div class="home-notes" id="homeNotes"></div>
+        </div>
+      </div>
+
+      <div class="home-brand-strip" aria-label="S-360">
+        <p>“Güvenlik, bir görev değil; bir sorumluluk bilincidir.”</p>
+        <div class="home-brand-mark">
+          <span class="home-brand-shield" aria-hidden="true">
+            <svg viewBox="0 0 64 64"><path fill="currentColor" d="M32 4 10 14v18c0 14 8.5 24 22 28 13.5-4 22-14 22-28V14L32 4z"/><path fill="#fff" d="m32 18 3.2 9.8H46l-8.2 6 3.2 9.8-9-5-9.1 5 3.2-9.8-8.2-6h10.8L32 18z"/></svg>
+          </span>
+          <strong>S-360</strong>
+          <small>DAİMA GÖREVE HAZIR</small>
         </div>
       </div>
     </section>
@@ -1003,11 +1014,11 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=63"></script>
-  <script src="/js/api.js?v=63"></script>
-  <script src="/js/webauthn-client.js?v=63"></script>
-  <script src="/js/app.js?v=63"></script>
-  <script src="/js/pwa.js?v=63"></script>
+  <script src="/js/haptic.js?v=64"></script>
+  <script src="/js/api.js?v=64"></script>
+  <script src="/js/webauthn-client.js?v=64"></script>
+  <script src="/js/app.js?v=64"></script>
+  <script src="/js/pwa.js?v=64"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });

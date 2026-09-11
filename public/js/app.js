@@ -223,12 +223,12 @@ function applyRoleUi() {
     if (tabs[3]) tabs[3].classList.add("hidden");
   } else if (tabs.length >= 4) {
     tabs[0].dataset.view = "home";
-    tabs[0].querySelector("span").textContent = "Ana";
+    tabs[0].querySelector("span").textContent = "Ana Sayfa";
     tabs[1].classList.remove("hidden");
-    tabs[1].dataset.view = "keys";
-    tabs[1].querySelector("span").textContent = "Anahtar";
-    tabs[2].dataset.view = "visitors";
-    tabs[2].querySelector("span").textContent = "Ziyaret";
+    tabs[1].dataset.view = "visitors";
+    tabs[1].querySelector("span").textContent = "Ziyaret";
+    tabs[2].dataset.view = "announcements";
+    tabs[2].querySelector("span").textContent = "Raporlar";
     if (tabs[3]) {
       tabs[3].classList.remove("hidden");
       tabs[3].dataset.view = "directory";
