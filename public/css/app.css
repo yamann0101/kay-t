@@ -806,6 +806,7 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
     0 0 12px rgba(212, 175, 55, 0.4),
     0 -4px 16px rgba(0, 0, 0, 0.55);
   pointer-events: none;
+  overflow: visible;
 }
 .tabbar-bg::before,
 .tabbar-bg::after {
@@ -822,6 +823,7 @@ button:active, .tab:active, .vis-act:active, .key-btn:active, .qcard:active {
   gap: 0;
   padding: 6px 4px 5px;
   pointer-events: none;
+  overflow: visible;
 }
 .tabbar-row > * {
   pointer-events: auto;

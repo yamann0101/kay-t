@@ -50,7 +50,7 @@ const VISIT_META = {
     last: "Kaya",
     company: "Yaman Group",
     notes: "Görüşme yapılacak kişi, bölüm vb.",
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`,
     hint: true,
     info: true,
     checkout: false,
@@ -74,7 +74,7 @@ const VISIT_META = {
     last: "Yıldız",
     company: "Yurtiçi Kargo",
     notes: "Teslim alacak / teslim edecek seçin",
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/></svg>`,
     hint: true,
     info: true,
     checkout: true,
@@ -87,7 +87,7 @@ const VISIT_META = {
     last: "Kaya",
     company: "Lezzet Yemek",
     notes: "Personellere yemek getirdi",
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10h16v10H4z"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/><path d="M12 14v3"/></svg>`,
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3v8M6 11v10M4 3v5a2 2 0 0 0 4 0V3"/><path d="M18 3v7a2 2 0 0 1-2 2h0V21"/><path d="M16 3h4"/></svg>`,
     hint: false,
     info: false,
     checkout: true,
@@ -2168,11 +2168,17 @@ function fieldHtml(f, meta) {
     f.key === "plate" ? "34 ABC 123" :
     f.key === "visit_date" ? "" :
     f.key === "entry_time" ? "" :
-    f.key === "exit_time" ? "" : "";
+    f.key === "exit_time" ? "Seçiniz" : "";
   const req = f.required ? " required" : "";
   const star = f.required ? " <i>*</i>" : "";
   const icon = FIELD_ICONS[f.key] || FIELD_ICONS.default;
-  const clr = f.type === "textarea" ? "" : `<button type="button" class="clr" data-clear="${id}">×</button>`;
+  const isPicker = f.key === "visit_date" || f.key === "entry_time" || f.key === "exit_time";
+  const clr = f.type === "textarea" || isPicker
+    ? ""
+    : `<button type="button" class="clr" data-clear="${id}" aria-label="Temizle">×</button>`;
+  const chevron = isPicker
+    ? `<span class="reg-chevron" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></span>`
+    : "";
   const suggest = ["first_name", "last_name", "company", "plate"].includes(f.key);
   const hint =
     f.key === "visit_date" || f.key === "entry_time"
@@ -2184,17 +2190,20 @@ function fieldHtml(f, meta) {
   } else if (f.key === "visit_date") {
     input = `<input type="date" name="${f.key}" id="${id}"${req} />`;
   } else if (f.key === "entry_time" || f.key === "exit_time") {
-    input = `<input type="time" name="${f.key}" id="${id}"${req} />`;
+    input = `<input type="time" name="${f.key}" id="${id}"${f.key === "exit_time" ? "" : req} placeholder="${ph}" />`;
   } else {
     input = `<input name="${f.key}" id="${id}" placeholder="${ph}" autocomplete="off"${req} ${suggest ? `data-suggest="${f.key}"` : ""} />`;
   }
+  const full = f.type === "textarea" || f.key === "notes" ? " full" : "";
+  const picker = isPicker ? " picker" : "";
   return `
-    <label class="reg-field">
+    <label class="reg-field${full}${picker}">
       <span>${f.label}${star}</span>
-      <div class="reg-input${f.type === "textarea" ? " area" : ""}">
+      <div class="reg-input${f.type === "textarea" ? " area" : ""}${picker}">
         ${icon}
         ${input}
         ${clr}
+        ${chevron}
       </div>
       ${suggest ? `<div class="suggest-box hidden" data-suggest-for="${f.key}"></div>` : ""}
       ${hint}

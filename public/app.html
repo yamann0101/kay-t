@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
   <meta name="theme-color" content="#1a6cff" />
-  <meta name="s360-build" content="64" />
+  <meta name="s360-build" content="66" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="S-360" />
@@ -15,14 +15,14 @@
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=64" />
-  <link rel="stylesheet" href="/css/app.css?v=64" />
-  <link rel="stylesheet" href="/css/theme-light.css?v=64" />
-  <link rel="stylesheet" href="/css/login.css?v=64" />
+  <link rel="stylesheet" href="/css/tokens.css?v=66" />
+  <link rel="stylesheet" href="/css/app.css?v=66" />
+  <link rel="stylesheet" href="/css/theme-light.css?v=66" />
+  <link rel="stylesheet" href="/css/login.css?v=66" />
   <script>
     try {
-      if (localStorage.getItem("s360_build") !== "64") {
-        localStorage.setItem("s360_build", "64");
+      if (localStorage.getItem("s360_build") !== "66") {
+        localStorage.setItem("s360_build", "66");
         if (window.caches) {
           caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
         }
@@ -532,9 +532,11 @@
             <p>Güvenli alanlar, huzurlu yarınlar.</p>
           </div>
           <div class="weather-card reg-weather">
-            <div class="weather-ico" aria-hidden="true">☀</div>
+            <div class="weather-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="#f5b301"/><path stroke="#f5b301" stroke-width="1.8" stroke-linecap="round" d="M12 2v2.2M12 19.8V22M2 12h2.2M19.8 12H22M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+            </div>
             <div>
-              <b id="regWeatherTemp">—</b>
+              <b id="regWeatherTemp">24°C</b>
               <span>Açık Hava</span>
               <small>Çayırova / Kocaeli</small>
             </div>
@@ -560,7 +562,7 @@
             Sevkiyat
           </button>
           <button type="button" class="reg-tab" data-type="gorusme">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
             Görüşme
           </button>
           <button type="button" class="reg-tab active" data-type="calisma">
@@ -568,11 +570,11 @@
             Ziyaretçi
           </button>
           <button type="button" class="reg-tab" data-type="kargo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/></svg>
             Kargo
           </button>
           <button type="button" class="reg-tab" data-type="yemek">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10h16v10H4z"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/><path d="M12 14v3"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3v8M6 11v10M4 3v5a2 2 0 0 0 4 0V3"/><path d="M18 3v7a2 2 0 0 1-2 2h0V21"/><path d="M16 3h4"/></svg>
             Yemek
           </button>
         </div>
@@ -837,31 +839,64 @@
     </div>
 
     <nav class="tabbar" aria-label="Ana menü">
-      <div class="tabbar-bg" aria-hidden="true"></div>
+      <div class="tabbar-bg" aria-hidden="true">
+        <svg class="tabbar-shape" viewBox="0 0 400 78" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="tabbarFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0d3478"/>
+              <stop offset="45%" stop-color="#071e4a"/>
+              <stop offset="100%" stop-color="#020a1c"/>
+            </linearGradient>
+            <linearGradient id="tabbarStroke" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#4aa8ff"/>
+              <stop offset="50%" stop-color="#9ad8ff"/>
+              <stop offset="100%" stop-color="#4aa8ff"/>
+            </linearGradient>
+          </defs>
+          <path
+            fill="url(#tabbarFill)"
+            stroke="url(#tabbarStroke)"
+            stroke-width="1.5"
+            d="M32,30
+               H148
+               C163,30 170,27 178,15
+               C190,-4 210,-4 222,15
+               C230,27 237,30 252,30
+               H368
+               C386,30 394,38 394,52
+               V58
+               C394,72 386,76 368,76
+               H32
+               C14,76 6,72 6,58
+               V52
+               C6,38 14,30 32,30
+               Z"/>
+        </svg>
+      </div>
       <div class="tabbar-row">
         <button class="tab active" data-view="home">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-7H10v7H5a1 1 0 0 1-1-1z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.2 3.5 10.2V20a1.2 1.2 0 0 0 1.2 1.2h5.1v-6.2h4.4v6.2h5.1A1.2 1.2 0 0 0 20.5 20v-9.8L12 3.2z"/></svg>
           <span>Ana Sayfa</span>
         </button>
         <button class="tab" data-view="visitors">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M7 21v-2a4 4 0 0 1 3-3.87"/><circle cx="12" cy="7" r="4"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="3.25"/><path d="M11.2 13.2 19 5.4"/><path d="M16.4 4.8h3.2v3.2"/><path d="m15.2 8.2 2.2 2.2"/></svg>
           <span>Ziyaret</span>
         </button>
         <div class="fab-slot">
           <button class="fab" id="fabRegister" type="button" aria-label="Ziyaretçi Kaydı">
             <span class="fab-glow" aria-hidden="true"></span>
             <span class="fab-face fab-shield" aria-hidden="true">
-              <svg viewBox="0 0 48 48"><path fill="#fff" d="M24 4L8 12v14c0 11 6.5 18.5 16 21 9.5-2.5 16-10 16-21V12L24 4z"/><path fill="#1a6cff" d="M24 16l2.2 6.6H34l-5.4 4 2.2 6.6L24 29.2l-6.8 4 2.2-6.6-5.4-4h7.8z"/></svg>
+              <svg viewBox="0 0 48 48"><path fill="#fff" d="M24 4L8 12v14c0 11 6.5 18.5 16 21 9.5-2.5 16-10 16-21V12L24 4z"/><path fill="#0b4ed8" d="M24 16l2.2 6.6H34l-5.4 4 2.2 6.6L24 29.2l-6.8 4 2.2-6.6-5.4-4h7.8z"/></svg>
             </span>
           </button>
           <small>Kayıt</small>
         </div>
         <button class="tab" data-view="announcements">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5l7 3 9-4v14l-9 4-7-3z"/><path d="M11 8v11"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="12" width="3.6" height="8" rx="1"/><rect x="10.2" y="8" width="3.6" height="12" rx="1"/><rect x="16.4" y="4" width="3.6" height="16" rx="1"/></svg>
           <span>Raporlar</span>
         </button>
         <button class="tab" data-view="directory">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7a2 2 0 0 1 2 2v13l-2.5-1.5L8 20V7a2 2 0 0 0-2-2H4z"/><path d="M13 5h7v15l-2.5-1.5L15 20V7a2 2 0 0 0-2-2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h6.2a2.2 2.2 0 0 1 2.2 2.2V19l-2.4-1.4L8 19V7.7A2.2 2.2 0 0 0 5.8 5.5H4z"/><path d="M20 5.5h-6.2a2.2 2.2 0 0 0-2.2 2.2V19l2.4-1.4L16.4 19V7.7a2.2 2.2 0 0 1 2.2-2.2H20z"/></svg>
           <span>Rehber</span>
         </button>
       </div>
@@ -1014,11 +1049,11 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=64"></script>
-  <script src="/js/api.js?v=64"></script>
-  <script src="/js/webauthn-client.js?v=64"></script>
-  <script src="/js/app.js?v=64"></script>
-  <script src="/js/pwa.js?v=64"></script>
+  <script src="/js/haptic.js?v=66"></script>
+  <script src="/js/api.js?v=66"></script>
+  <script src="/js/webauthn-client.js?v=66"></script>
+  <script src="/js/app.js?v=66"></script>
+  <script src="/js/pwa.js?v=66"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });
