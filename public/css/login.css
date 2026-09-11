@@ -315,3 +315,47 @@ body.login-page .phone-shell {
   margin: -6px 0 8px;
   text-align: center;
 }
+
+/* Light blue login skin */
+body.login-page {
+  background: #f4f7fb !important;
+}
+.login-bg {
+  background:
+    linear-gradient(180deg, rgba(244, 247, 251, 0.55) 0%, rgba(238, 245, 255, 0.92) 42%, #f4f7fb 72%),
+    linear-gradient(135deg, #d6e6ff 0%, #f4f7fb 55%, #e8f0ff 100%) !important;
+  filter: none !important;
+}
+.lang-pill {
+  background: #fff !important;
+  border: 1px solid rgba(26, 108, 255, 0.14) !important;
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.lang-pill svg { color: var(--primary) !important; }
+.brand h1 { color: var(--primary-deep) !important; }
+.brand .sub { color: var(--primary) !important; }
+.login-card {
+  background: #fff !important;
+  border: 1px solid rgba(26, 108, 255, 0.12) !important;
+  box-shadow: 0 16px 40px rgba(20, 60, 120, 0.12) !important;
+  color: var(--text);
+}
+.login-card label { color: var(--muted) !important; }
+.login-card input {
+  background: var(--bg-input) !important;
+  border: 1px solid rgba(26, 108, 255, 0.14) !important;
+  color: var(--text) !important;
+}
+.login-card .btn,
+.login-card button[type="submit"] {
+  background: linear-gradient(180deg, #3d8bff, #1a6cff) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 10px 22px rgba(26, 108, 255, 0.3) !important;
+}
+.quote, .slogan-row, .feat, .ver { color: var(--muted) !important; }
+.feat b { color: var(--primary-deep) !important; }
+.error-msg { color: #dc2626 !important; }
+.shield-wrap { filter: drop-shadow(0 8px 18px rgba(26, 108, 255, 0.35)) !important; }
+

@@ -1,4 +1,4 @@
-const CACHE = "s360-v59";
+const CACHE = "s360-v60";
 const PRECACHE = [
   "/",
   "/app",
@@ -6,6 +6,7 @@ const PRECACHE = [
   "/css/tokens.css",
   "/css/login.css",
   "/css/app.css",
+  "/css/theme-light.css",
   "/css/admin.css",
   "/js/api.js",
   "/js/login.js",

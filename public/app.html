@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#1a6cff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="S-360" />
   <meta name="application-name" content="S-360" />
   <link rel="manifest" href="/manifest.json" />
@@ -13,10 +13,11 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <title>S-360</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/tokens.css?v=59" />
-  <link rel="stylesheet" href="/css/app.css?v=59" />
-  <link rel="stylesheet" href="/css/login.css?v=59" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/tokens.css?v=60" />
+  <link rel="stylesheet" href="/css/app.css?v=60" />
+  <link rel="stylesheet" href="/css/theme-light.css?v=60" />
+  <link rel="stylesheet" href="/css/login.css?v=60" />
   <script>
     try {
       var __v = localStorage.getItem("s360_view") || sessionStorage.getItem("s360_view");
@@ -41,18 +42,29 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
       <div class="brand-mini">
-        <strong class="gold-text">S-360</strong>
-        <em>GÜVENLİ DAHA YARINLAR</em>
+        <div class="brand-shield" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path fill="url(#hdrBlue)" d="M32 4L10 14v18c0 14 8.5 24 22 28 13.5-4 22-14 22-28V14L32 4z"/><path fill="#fff" d="M32 18l3.2 9.8H46l-8.2 6 3.2 9.8L32 38.6 22.9 43.6l3.2-9.8-8.2-6h10.8z"/><defs><linearGradient id="hdrBlue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4d8fff"/><stop offset="1" stop-color="#0d5aef"/></linearGradient></defs></svg>
+        </div>
+        <div>
+          <strong class="gold-text">S-360</strong>
+          <em>GÜVENLİ DAHA YARINLAR</em>
+        </div>
       </div>
       <div class="header-actions">
-        <button type="button" id="btnRefresh" aria-label="Yenile" title="Yenile">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 4v6h-6"/></svg>
-        </button>
         <button type="button" class="bell" id="openNotif" aria-label="Bildirimler">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 1 0 6 8c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
           <i class="dot" id="notifDot"></i>
         </button>
-        <button type="button" class="profile-chip" id="openProfile" aria-label="Profil">S</button>
+        <button type="button" class="profile-chip" id="openProfile" aria-label="Profil">
+          <span id="headerAvatarLetter">E</span>
+          <span class="profile-chip-meta">
+            <b id="headerUserName">—</b>
+            <small id="headerUserRole">Görevli</small>
+          </span>
+        </button>
+        <button type="button" id="btnRefresh" class="hidden" aria-label="Yenile" title="Yenile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 4v6h-6"/></svg>
+        </button>
       </div>
     </header>
     <div class="server-banner" id="serverBanner" role="status"></div>
@@ -63,76 +75,151 @@
 
     <section class="view active" id="view-home">
       <div id="homeTicker" class="home-ticker hidden"></div>
-      <div class="hello">
-        <div>
-          <h2>Merhaba, <b id="helloName">...</b></h2>
-          <p id="helloDays" class="hello-days">Gün: <b id="homeDays">0</b></p>
+
+      <div class="home-hero">
+        <div class="home-hero-text">
+          <div class="home-date" id="dateLine">—</div>
+          <h2 class="home-greet">Günaydın, <b id="helloName">...</b></h2>
+          <p class="home-tagline">Görevde olduğun her an, daha güvenli yarınlar.</p>
+          <p class="hello-days home-days-line">Görev günü: <b id="homeDays">0</b> · <span id="timeLine">—</span></p>
         </div>
-        <div class="date-chip">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+        <div class="weather-card" id="weatherCard">
+          <div class="weather-ico" aria-hidden="true">☀</div>
           <div>
-            <strong id="dateLine">—</strong>
-            <span id="timeLine">—</span>
+            <b id="weatherTemp">—</b>
+            <span id="weatherDesc">Hava</span>
+            <small id="weatherLoc">Konum</small>
           </div>
         </div>
       </div>
 
-      <div class="stats-block">
-        <div class="stats-label">Aylık / Toplam</div>
-        <div class="stats mini stats-total">
-          <div class="stat g"><div class="meta"><span>Toplam Giriş</span><b id="st-total-giris">0</b></div></div>
-          <div class="stat b"><div class="meta"><span>Aylık Giriş</span><b id="st-month-giris">0</b></div></div>
-          <div class="stat c"><div class="meta"><span>Sevkiyat</span><b id="st-month-sevkiyat">0</b></div></div>
-          <div class="stat o"><div class="meta"><span>Görüşme</span><b id="st-month-gorusme">0</b></div></div>
-          <div class="stat p"><div class="meta"><span>Çalışma</span><b id="st-month-calisma">0</b></div></div>
-          <div class="stat r"><div class="meta"><span>Kargo</span><b id="st-month-kargo">0</b></div></div>
-          <div class="stat y"><div class="meta"><span>Yemek</span><b id="st-month-yemek">0</b></div></div>
+      <div class="duty-row">
+        <div class="duty-card">
+          <div class="duty-ico clock">⏱</div>
+          <div>
+            <span>Görev Süren</span>
+            <b id="dutyElapsed">00:00</b>
+            <small id="dutyDate">—</small>
+          </div>
         </div>
-        <div class="stats-label today">Bugün</div>
-        <div class="stats mini today-stats">
-          <div class="stat g"><div class="meta"><span>Giriş</span><b id="st-giris">0</b></div></div>
-          <div class="stat c"><div class="meta"><span>Sevkiyat</span><b id="st-sevkiyat">0</b></div></div>
+        <div class="duty-card">
+          <div class="duty-ico moon">☾</div>
+          <div>
+            <span>Vardiya Bilgisi</span>
+            <b id="shiftName">Vardiya</b>
+            <small id="shiftHours">—</small>
+          </div>
+        </div>
+        <button type="button" class="duty-start write-only" id="homePatrolBtn" data-view="patrol">
+          <span class="duty-start-ico">▦</span>
+          Devriyeye Başla
+        </button>
+      </div>
+
+      <div class="stats-block mock-stats">
+        <div class="stats mini stats-total home-stat-grid">
+          <div class="stat g home-stat">
+            <div class="home-stat-ico in">↗</div>
+            <div class="meta"><b id="st-total-giris">0</b><span>Toplam Giriş</span></div>
+            <em class="trend" id="st-trend-giris">bugün <i id="st-giris">0</i></em>
+          </div>
+          <div class="stat r home-stat">
+            <div class="home-stat-ico out">↙</div>
+            <div class="meta"><b id="st-total-cikis">0</b><span>Toplam Çıkış</span></div>
+            <em class="trend" id="st-trend-cikis">bugün <i id="st-cikis">0</i></em>
+          </div>
+          <div class="stat b home-stat hidden">
+            <div class="meta"><b id="st-month-giris">0</b><span>Aylık Giriş</span></div>
+          </div>
+          <div class="stat c home-stat">
+            <div class="home-stat-ico ship">👥</div>
+            <div class="meta"><b id="st-month-sevkiyat">0</b><span>Sevkiyat</span></div>
+            <em class="trend">bugün <i id="st-sevkiyat">0</i></em>
+          </div>
+          <div class="stat p home-stat">
+            <div class="home-stat-ico work">⛑</div>
+            <div class="meta"><b id="st-month-calisma">0</b><span>Çalışma</span></div>
+            <em class="trend">bugün <i id="st-calisma">0</i></em>
+          </div>
+        </div>
+        <div class="stats-label today hidden">Bugün</div>
+        <div class="stats mini today-stats hidden">
           <div class="stat o"><div class="meta"><span>Görüşme</span><b id="st-gorusme">0</b></div></div>
-          <div class="stat p"><div class="meta"><span>Çalışma</span><b id="st-calisma">0</b></div></div>
           <div class="stat r"><div class="meta"><span>Kargo</span><b id="st-kargo">0</b></div></div>
           <div class="stat y"><div class="meta"><span>Yemek</span><b id="st-yemek">0</b></div></div>
+          <div class="stat o"><div class="meta"><span>Aylık Görüşme</span><b id="st-month-gorusme">0</b></div></div>
+          <div class="stat r"><div class="meta"><span>Aylık Kargo</span><b id="st-month-kargo">0</b></div></div>
+          <div class="stat y"><div class="meta"><span>Aylık Yemek</span><b id="st-month-yemek">0</b></div></div>
         </div>
       </div>
 
-      <div class="section moves-sec">
-        <div class="section-h">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-          <h3>Son Hareketler</h3>
-          <div style="display:flex;gap:6px;align-items:center">
-            <button type="button" class="vis-act write-only" id="homeInsideBtn" data-view="inside">İçeridekiler</button>
-            <button data-view="visitors">Tümünü Gör &gt;</button>
+      <div class="home-menu-grid">
+        <button type="button" class="home-menu-item write-only" id="homeMenuRegister">
+          <span class="hm-ico">👤+</span><b>Ziyaretçi Kaydı</b><i>›</i>
+        </button>
+        <button type="button" class="home-menu-item" data-view="keys">
+          <span class="hm-ico">🔑</span><b>Anahtar İşlemleri</b><i>›</i>
+        </button>
+        <button type="button" class="home-menu-item write-only" id="homeMenuCargo">
+          <span class="hm-ico">📦</span><b>Kargo Takibi</b><i>›</i>
+        </button>
+        <button type="button" class="home-menu-item write-only" data-reg-type="gorusme">
+          <span class="hm-ico">💬</span><b>Görüşme</b><i>›</i>
+        </button>
+        <button type="button" class="home-menu-item write-only" data-reg-type="calisma">
+          <span class="hm-ico">🛡</span><b>Çalışma / Devriye</b><i>›</i>
+        </button>
+        <button type="button" class="home-menu-item write-only" data-reg-type="yemek">
+          <span class="hm-ico">🍽</span><b>Yemek Listesi</b><i>›</i>
+        </button>
+      </div>
+
+      <div class="home-announce" id="homeAnnounce">
+        <span class="ann-ico">📢</span>
+        <b>DUYURU</b>
+        <span id="homeAnnounceText">Duyuru yok</span>
+      </div>
+
+      <div class="home-split">
+        <div class="section moves-sec home-panel">
+          <div class="section-h">
+            <h3>⏱ Son Girişler</h3>
+            <div class="section-h-acts">
+              <button type="button" class="link-act write-only" id="homeInsideBtn" data-view="inside">İçeridekiler</button>
+              <button type="button" class="link-act" data-view="visitors">Tümünü Gör ›</button>
+            </div>
           </div>
+          <div class="activity" id="moves"></div>
         </div>
-        <div class="activity" id="moves"></div>
-      </div>
 
-      <div class="section quick-sec">
-        <div class="section-h">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 10-14h-7z"/></svg>
-          <h3>Hızlı Erişim</h3>
+        <div class="section quick-sec home-panel">
+          <div class="section-h">
+            <h3>⚡ Hızlı İşlemler</h3>
+          </div>
+          <div class="quick home-quick-list">
+            <button class="qcard write-only qcard-bulk" type="button" id="homeBulkExit" data-view="bulk-exit">
+              <span class="q-ico">🚪</span>
+              <div><b>Toplu Çıkış</b></div>
+              <i>›</i>
+            </button>
+            <button class="qcard write-only" type="button" id="homeNoteBtn">
+              <span class="q-ico">📝</span>
+              <div><b>Not Ekle</b></div>
+              <i>›</i>
+            </button>
+            <button class="qcard write-only" type="button" id="homeCargoBtn">
+              <span class="q-ico">📷</span>
+              <div><b>Fotoğraf / Kargo</b></div>
+              <i>›</i>
+            </button>
+            <button class="qcard" type="button" data-view="announcements">
+              <span class="q-ico">📊</span>
+              <div><b>Rapor / Duyuru</b></div>
+              <i>›</i>
+            </button>
+          </div>
+          <div class="home-notes" id="homeNotes"></div>
         </div>
-        <div class="quick">
-          <button class="qcard mini write-only qcard-bulk" type="button" id="homeBulkExit" data-view="bulk-exit">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H3v-6"/><path d="M14 10L3 21"/><path d="M21 10V4a1 1 0 0 0-1-1H8"/></svg>
-            <div><b>Toplu Çıkış</b><span>Firmaya göre</span></div>
-          </button>
-          <button class="qcard mini write-only" type="button" id="homeCargoBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v10H3z"/><path d="M14 11h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-            <div><b>Kargo</b><span>Bildirim + foto</span></div>
-          </button>
-          <button class="qcard mini write-only" type="button" id="homeNoteBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M8 11h8M8 15h6"/></svg>
-            <div><b>Not</b><span>Defter + foto</span></div>
-          </button>
-        </div>
-      </div>
-      <div class="home-notes" id="homeNotes">
-        <small style="color:#999">Kargo / not yok</small>
       </div>
     </section>
 
@@ -389,7 +476,15 @@
         <div class="reg-title-row">
           <div>
             <h2>Ziyaretçi Kaydı</h2>
-            <p>Ziyaretçi bilgilerini eksiksiz olarak giriniz.</p>
+            <p>Güvenli alanlar, huzurlu yarınlar.</p>
+          </div>
+          <div class="weather-card reg-weather">
+            <div class="weather-ico" aria-hidden="true">☀</div>
+            <div>
+              <b id="regWeatherTemp">—</b>
+              <span>Açık Hava</span>
+              <small>Çayırova / Kocaeli</small>
+            </div>
           </div>
           <div class="reg-no">
             <small>Kayıt No</small>
@@ -399,7 +494,10 @@
 
         <div class="reg-quick-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
-          <input id="regQuickSearch" type="search" placeholder="Kişi / firma ara — bölüm otomatik dolsun" autocomplete="off" />
+          <input id="regQuickSearch" type="search" placeholder="Kişi / Firma ara — Bölüm otomatik dolsun" autocomplete="off" />
+          <button type="button" class="reg-qr" aria-label="Tara" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8z"/></svg>
+          </button>
           <div class="suggest-box hidden" id="regQuickSuggest"></div>
         </div>
 
@@ -413,8 +511,8 @@
             Görüşme
           </button>
           <button type="button" class="reg-tab active" data-type="calisma">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M6 21v-2a4 4 0 0 1 3-3.87"/><path d="M8.2 5.2 6.4 3.6M15.8 5.2 17.6 3.6M12 2.4V1"/><path d="M14.5 21v-2a3.5 3.5 0 0 0-2.2-3.2"/><path d="M4 14h3l1 2h2"/></svg>
-            Çalışma
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Ziyaretçi
           </button>
           <button type="button" class="reg-tab" data-type="kargo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -435,8 +533,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M6 21v-2a4 4 0 0 1 3-3.87"/><path d="M8.2 5.2 6.4 3.6M15.8 5.2 17.6 3.6M12 2.4V1"/><path d="M14.5 21v-2a3.5 3.5 0 0 0-2.2-3.2"/><path d="M4 14h3l1 2h2"/></svg>
             </span>
             <div>
-              <b id="regTypeTitle">Çalışma</b>
-              <p id="regTypeDesc">Proje, bakım, onarım veya geçici çalışma için gelen ziyaretçiler.</p>
+              <b id="regTypeTitle">Ziyaretçi Bilgileri</b>
+              <p id="regTypeDesc">Ziyaretçi bilgilerini eksiksiz doldurun.</p>
             </div>
           </div>
           <div id="regCargoOpts" class="reg-cargo-opts hidden">
@@ -690,25 +788,27 @@
       <div class="tabbar-row">
         <button class="tab active" data-view="home">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-7H10v7H5a1 1 0 0 1-1-1z"/></svg>
-          <span>Ana</span>
+          <span>Ana Sayfa</span>
         </button>
-        <button class="tab" data-view="keys">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="15" r="4"/><path d="M11.5 13.5L21 4v4"/><path d="M17 8h3"/></svg>
-          <span>Anahtar</span>
+        <button class="tab" data-view="visitors">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M7 21v-2a4 4 0 0 1 3-3.87"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Ziyaret</span>
         </button>
         <div class="fab-slot">
           <button class="fab" id="fabRegister" type="button" aria-label="Ziyaretçi Kaydı">
             <span class="fab-glow" aria-hidden="true"></span>
-            <span class="fab-face">+</span>
+            <span class="fab-face fab-shield" aria-hidden="true">
+              <svg viewBox="0 0 48 48"><path fill="#fff" d="M24 4L8 12v14c0 11 6.5 18.5 16 21 9.5-2.5 16-10 16-21V12L24 4z"/><path fill="#1a6cff" d="M24 16l2.2 6.6H34l-5.4 4 2.2 6.6L24 29.2l-6.8 4 2.2-6.6-5.4-4h7.8z"/></svg>
+            </span>
           </button>
           <small>Kayıt</small>
         </div>
-        <button class="tab" data-view="visitors">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M7 21v-2a4 4 0 0 1 3-3.87"/><circle cx="12" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M2 21v-2a4 4 0 0 1 3-3.87"/><circle cx="5.5" cy="10" r="2.5"/><circle cx="18.5" cy="10" r="2.5"/></svg>
-          <span>Ziyaret</span>
+        <button class="tab" data-view="announcements">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5l7 3 9-4v14l-9 4-7-3z"/><path d="M11 8v11"/></svg>
+          <span>Raporlar</span>
         </button>
         <button class="tab" data-view="directory">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7a2 2 0 0 1 2 2v13l-2.5-1.5L8 20V7a2 2 0 0 0-2-2H4z"/><path d="M13 5h7v15l-2.5-1.5L15 20V7a2 2 0 0 0-2-2z"/><path d="M17 10v4M15 12h4"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7a2 2 0 0 1 2 2v13l-2.5-1.5L8 20V7a2 2 0 0 0-2-2H4z"/><path d="M13 5h7v15l-2.5-1.5L15 20V7a2 2 0 0 0-2-2z"/></svg>
           <span>Rehber</span>
         </button>
       </div>
@@ -861,11 +961,11 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/js/haptic.js?v=59"></script>
-  <script src="/js/api.js?v=59"></script>
-  <script src="/js/webauthn-client.js?v=59"></script>
-  <script src="/js/app.js?v=59"></script>
-  <script src="/js/pwa.js?v=59"></script>
+  <script src="/js/haptic.js?v=60"></script>
+  <script src="/js/api.js?v=60"></script>
+  <script src="/js/webauthn-client.js?v=60"></script>
+  <script src="/js/app.js?v=60"></script>
+  <script src="/js/pwa.js?v=60"></script>
   <script>
     document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });

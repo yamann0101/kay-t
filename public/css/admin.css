@@ -315,3 +315,45 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   table { min-width: 420px; }
   .toolbar input[type="search"] { min-width: 0; flex: 1 1 140px; }
 }
+
+/* Light blue admin skin */
+body.admin-body {
+  background: #f4f7fb !important;
+  color: #0f1b33 !important;
+}
+.aside {
+  background: #fff !important;
+  border-right: 1px solid rgba(15, 40, 80, 0.08) !important;
+}
+.aside .logo strong { color: #0b3d91 !important; }
+.aside .logo small { color: #1a6cff !important; }
+.aside nav button { color: #1e2f4d !important; }
+.aside nav button.active,
+.aside nav button:hover {
+  background: #eef5ff !important;
+  color: #1a6cff !important;
+}
+.main { background: #f4f7fb !important; }
+.topbar, .card, .panel, .kpi, .toolbar {
+  background: #fff !important;
+  border-color: rgba(15, 40, 80, 0.08) !important;
+  color: #0f1b33 !important;
+}
+.kpi b, table th, table td, .card h3, .panel h3 { color: #0f1b33 !important; }
+table { background: #fff; }
+body.admin-body input,
+body.admin-body select,
+body.admin-body textarea {
+  background: #f0f6ff !important;
+  border: 1px solid rgba(26, 108, 255, 0.14) !important;
+  color: #0f1b33 !important;
+}
+body.admin-body .btn,
+body.admin-body .btn-gold,
+body.admin-body button.primary {
+  background: linear-gradient(180deg, #3d8bff, #1a6cff) !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+.gold-text { color: #1a6cff !important; }
+.star-btn.on { color: #1a6cff !important; border-color: rgba(26, 108, 255, 0.35) !important; }

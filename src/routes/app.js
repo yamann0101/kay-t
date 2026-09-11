@@ -53,10 +53,13 @@ router.get("/summary", async (_req, res) => {
        WHERE LOWER(COALESCE(visit_type,'')) = $1 AND ${periodSql}`,
       [type]
     );
+  const exitSql = `(exited IS TRUE OR exited_at IS NOT NULL OR NULLIF(TRIM(COALESCE(exit_time,'')), '') IS NOT NULL)`;
   const [
     totalGiris,
+    totalCikis,
     monthGiris,
     todayGiris,
+    todayCikis,
     monthSev,
     monthGor,
     monthCal,
@@ -69,8 +72,10 @@ router.get("/summary", async (_req, res) => {
     todayYemek,
   ] = await Promise.all([
     query(`SELECT COUNT(*)::int AS n FROM visitors`),
+    query(`SELECT COUNT(*)::int AS n FROM visitors WHERE ${exitSql}`),
     query(`SELECT COUNT(*)::int AS n FROM visitors WHERE ${SQL_TR_MONTH}`),
     query(`SELECT COUNT(*)::int AS n FROM visitors WHERE ${SQL_TR_TODAY}`),
+    query(`SELECT COUNT(*)::int AS n FROM visitors WHERE ${exitSql} AND ${SQL_TR_TODAY}`),
     typeCount("sevkiyat", SQL_TR_MONTH),
     typeCount("gorusme", SQL_TR_MONTH),
     typeCount("calisma", SQL_TR_MONTH),
@@ -85,6 +90,7 @@ router.get("/summary", async (_req, res) => {
 
   res.json({
     total_giris: totalGiris.rows[0].n,
+    total_cikis: totalCikis.rows[0].n,
     month_giris: monthGiris.rows[0].n,
     month_sevkiyat: monthSev.rows[0].n,
     month_gorusme: monthGor.rows[0].n,
@@ -92,6 +98,7 @@ router.get("/summary", async (_req, res) => {
     month_kargo: monthKargo.rows[0].n,
     month_yemek: monthYemek.rows[0].n,
     giris: todayGiris.rows[0].n,
+    cikis: todayCikis.rows[0].n,
     sevkiyat: todaySev.rows[0].n,
     gorusme: todayGor.rows[0].n,
     calisma: todayCal.rows[0].n,

@@ -56,13 +56,13 @@ const VISIT_META = {
     checkout: false,
   },
   calisma: {
-    title: "Çalışma",
-    desc: "Proje, bakım, onarım veya geçici çalışma için gelen ziyaretçiler.",
-    first: "Emre",
-    last: "Demir",
-    company: "Teknik Yapı A.Ş.",
+    title: "Ziyaretçi Bilgileri",
+    desc: "Ziyaretçi bilgilerini eksiksiz doldurun.",
+    first: "Adı Soyadı",
+    last: "Soyad",
+    company: "Firma Adı",
     notes: "Çalışma yapılacak alan, kişi, bölüm vb.",
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M6 21v-2a4 4 0 0 1 3-3.87"/><path d="M8.2 5.2 6.4 3.6M15.8 5.2 17.6 3.6M12 2.4V1"/><path d="M14.5 21v-2a3.5 3.5 0 0 0-2.2-3.2"/><path d="M4 14h3l1 2h2"/></svg>`,
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
     hint: true,
     info: true,
     checkout: false,
@@ -279,6 +279,24 @@ document.querySelectorAll("[data-view]").forEach((btn) => {
   btn.addEventListener("click", () => showView(btn.dataset.view));
 });
 
+document.querySelectorAll("[data-reg-type]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    if (isViewer()) return toast("İzleyici modunda kayıt yapılamaz");
+    await openVisitorRegister();
+    setVisitTab(btn.dataset.regType || "calisma");
+  });
+});
+document.getElementById("homeMenuCargo")?.addEventListener("click", async () => {
+  if (isViewer()) return toast("İzleyici modunda kayıt yapılamaz");
+  await openVisitorRegister();
+  setVisitTab("kargo");
+});
+document.getElementById("homeMenuRegister")?.addEventListener("click", async () => {
+  if (isViewer()) return toast("İzleyici modunda kayıt yapılamaz");
+  await openVisitorRegister();
+});
+document.getElementById("homePatrolBtn")?.addEventListener("click", () => showView("patrol"));
+
 document.getElementById("logoutBtn").onclick = async () => {
   try {
     await api("/api/auth/logout", { method: "POST" });
@@ -289,13 +307,88 @@ document.getElementById("logoutBtn").onclick = async () => {
   location.href = "/";
 };
 
+function greetWord(hour) {
+  if (hour >= 5 && hour < 12) return "Günaydın";
+  if (hour >= 12 && hour < 18) return "İyi günler";
+  return "İyi akşamlar";
+}
+
+function ensureDutyStart() {
+  try {
+    const key = "s360_duty_start";
+    let raw = sessionStorage.getItem(key);
+    if (!raw) {
+      raw = String(Date.now());
+      sessionStorage.setItem(key, raw);
+    }
+    return Number(raw) || Date.now();
+  } catch {
+    return Date.now();
+  }
+}
+
+function updateDutyWidgets() {
+  const start = ensureDutyStart();
+  const mins = Math.max(0, Math.floor((Date.now() - start) / 60000));
+  const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+  const mm = String(mins % 60).padStart(2, "0");
+  const elapsed = document.getElementById("dutyElapsed");
+  if (elapsed) elapsed.textContent = `${hh}:${mm}`;
+  const dutyDate = document.getElementById("dutyDate");
+  const tp = trParts();
+  if (dutyDate) dutyDate.textContent = `${String(tp.day).padStart(2, "0")}.${String(tp.m).padStart(2, "0")}.${tp.y}`;
+
+  const morning = String(shiftReminders.morning || "08:00");
+  const evening = String(shiftReminders.evening || "18:00");
+  const nowHm = trHm();
+  const night = nowHm >= evening || nowHm < morning;
+  const shiftName = document.getElementById("shiftName");
+  const shiftHours = document.getElementById("shiftHours");
+  if (shiftName) shiftName.textContent = night ? "Gece Vardiyası" : "Gündüz Vardiyası";
+  if (shiftHours) {
+    shiftHours.textContent = night ? `${evening} - ${morning}` : `${morning} - ${evening}`;
+  }
+}
+
+function updateWeatherStub() {
+  const temp = "24°C";
+  const desc = "Açık Hava";
+  const loc = "Çayırova / Kocaeli";
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+  set("weatherTemp", temp);
+  set("weatherDesc", desc);
+  set("weatherLoc", loc);
+  set("regWeatherTemp", temp);
+}
+
+async function loadHomeAnnounce() {
+  const el = document.getElementById("homeAnnounceText");
+  if (!el) return;
+  try {
+    const { items } = await api("/api/app/announcements");
+    const first = (items || [])[0];
+    el.textContent = first ? `${first.title}${first.body ? ` — ${first.body}` : ""}` : "Duyuru yok";
+  } catch {
+    el.textContent = "Duyuru yok";
+  }
+}
+
 function tickClock() {
   const p = nowParts();
+  const tp = trParts();
   const dateEl = document.getElementById("dateLine");
   const timeEl = document.getElementById("timeLine");
-  if (dateEl) dateEl.textContent = p.date;
+  if (dateEl) dateEl.textContent = `${tp.day} ${months[tp.m - 1]} ${tp.y} • ${days[tp.weekday]}`;
   if (timeEl) timeEl.textContent = p.time;
-  const tp = trParts();
+  const greet = document.querySelector(".home-greet");
+  if (greet) {
+    const name = document.getElementById("helloName")?.textContent || "...";
+    const hour = Number(tp.hour);
+    greet.innerHTML = `${greetWord(Number.isFinite(hour) ? hour : new Date().getHours())}, <b id="helloName">${escHtml(name)}</b>`;
+  }
   const full = `${tp.day} ${months[tp.m - 1]} ${tp.y}`;
   document.querySelectorAll(".js-date-full").forEach((el) => {
     el.textContent = full;
@@ -303,6 +396,7 @@ function tickClock() {
   document.querySelectorAll(".js-date-week").forEach((el) => {
     el.textContent = days[tp.weekday];
   });
+  updateDutyWidgets();
 }
 
 function personIcon() {
@@ -322,6 +416,10 @@ async function loadHome() {
     api("/api/app/activity").catch(() => ({ items: [] })),
   ]);
   document.getElementById("st-total-giris").textContent = sum.total_giris ?? 0;
+  const totalCikisEl = document.getElementById("st-total-cikis");
+  if (totalCikisEl) totalCikisEl.textContent = sum.total_cikis ?? 0;
+  const stCikis = document.getElementById("st-cikis");
+  if (stCikis) stCikis.textContent = sum.cikis ?? 0;
   document.getElementById("st-month-giris").textContent = sum.month_giris ?? 0;
   document.getElementById("st-month-sevkiyat").textContent = sum.month_sevkiyat ?? 0;
   document.getElementById("st-month-gorusme").textContent = sum.month_gorusme ?? 0;
@@ -442,6 +540,9 @@ async function loadHome() {
     };
   });
   loadHomeNotes();
+  loadHomeAnnounce().catch(() => {});
+  updateWeatherStub();
+  updateDutyWidgets();
 }
 
 async function loadHomeNotes() {
@@ -2895,8 +2996,11 @@ async function boot() {
   document.getElementById("whoAv").textContent = initials;
   const chip = document.getElementById("openProfile");
   if (chip) {
-    if (me.photo_url) chip.innerHTML = `<img src="${escHtml(me.photo_url)}" alt="" />`;
-    else chip.textContent = initials || "S";
+    const letter = initials?.slice(0, 1) || "S";
+    const firstName = String(me.full_name || "").trim().split(/\s+/)[0] || "—";
+    chip.innerHTML = me.photo_url
+      ? `<img src="${escHtml(me.photo_url)}" alt="" /><span class="profile-chip-meta"><b id="headerUserName">${escHtml(firstName)}</b><small id="headerUserRole">${escHtml(roleLabel)}</small></span>`
+      : `<span id="headerAvatarLetter">${escHtml(letter)}</span><span class="profile-chip-meta"><b id="headerUserName">${escHtml(firstName)}</b><small id="headerUserRole">${escHtml(roleLabel)}</small></span>`;
   }
   if (me.role === "admin") {
     document.getElementById("adminLink")?.classList.remove("hidden");
