@@ -1,26 +1,36 @@
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const reg = await navigator.serviceWorker.register("/sw.js");
+      const reg = await navigator.serviceWorker.register("/sw.js?v=62");
       reg.update().catch(() => {});
-      setInterval(() => reg.update().catch(() => {}), 60_000);
+      setInterval(() => reg.update().catch(() => {}), 30_000);
       reg.addEventListener("updatefound", () => {
         const sw = reg.installing;
         if (!sw) return;
         sw.addEventListener("statechange", () => {
-          // Yeni SW arka planda hazır olsun; sayfa yenileme / çıkış YOK
           if (sw.state === "installed" && navigator.serviceWorker.controller) {
             sw.postMessage({ type: "SKIP_WAITING" });
           }
         });
       });
+      // Eski SW varsa hemen guncelle
+      if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
     } catch {
       /* ignore */
     }
   });
 
-  // Güncellemede oturumu düşürme — reload yok
-  navigator.serviceWorker.addEventListener("controllerchange", () => {});
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading) return;
+    reloading = true;
+    try {
+      sessionStorage.setItem("s360_sw_reloaded", String(Date.now()));
+    } catch {
+      /* ignore */
+    }
+    location.reload();
+  });
 }
 
 function ptrEl() {
@@ -57,15 +67,6 @@ window.hidePtr = function hidePtr() {
   const atTop = () => {
     const sc = getScroll();
     return (sc.scrollTop || 0) <= 2 || window.scrollY <= 2;
-  };
-
-  const regDirty = () => {
-    try {
-      if (typeof isRegFormDirty === "function") return isRegFormDirty();
-    } catch {
-      /* ignore */
-    }
-    return false;
   };
 
   const triggerReload = () => {

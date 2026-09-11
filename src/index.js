@@ -30,11 +30,19 @@ app.use(express.json({ limit: "8mb" }));
 app.use(cookieParser());
 app.use(
   express.static(publicDir, {
-    maxAge: config.isProd ? "1h" : 0,
-    etag: !config.isProd,
+    maxAge: config.isProd ? "5m" : 0,
+    etag: true,
     index: false,
     setHeaders(res, filePath) {
-      if (!config.isProd && /\.(html|js|css)$/.test(filePath)) {
+      if (/sw\.js$/i.test(filePath) || /\.html$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+        return;
+      }
+      if (/\.(js|css)$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "no-cache, must-revalidate");
+        return;
+      }
+      if (!config.isProd) {
         res.setHeader("Cache-Control", "no-store");
       }
     },
@@ -56,6 +64,7 @@ app.use("/api/app", appRoutes);
 app.use("/api/admin", authRequired, adminRoutes);
 
 app.get("/", (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   const token = req.cookies?.[config.cookieName];
   if (token) {
     try {
@@ -67,8 +76,18 @@ app.get("/", (req, res) => {
   }
   res.sendFile(path.join(publicDir, "login.html"));
 });
-app.get("/app", (_req, res) => res.sendFile(path.join(publicDir, "app.html")));
-app.get("/admin", (_req, res) => res.sendFile(path.join(publicDir, "admin.html")));
+app.get("/app", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.sendFile(path.join(publicDir, "app.html"));
+});
+app.get("/admin", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.sendFile(path.join(publicDir, "admin.html"));
+});
+app.get("/sw.js", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.sendFile(path.join(publicDir, "sw.js"));
+});
 
 app.use((err, _req, res, _next) => {
   console.error(err);
